@@ -1,0 +1,25 @@
+{
+  "name": "yet-another-habit-app",
+  "private": true,
+  "workspaces": [
+    "applications/*",
+    "libraries/*"
+  ],
+  "scripts": {
+    "dev": "concurrently -k -n backend,mobile -c blue,green \"npm --workspace applications/backend run dev\" \"npm --workspace applications/mobile run dev\"",
+    "mobile": "npm --workspace applications/mobile run dev",
+    "backend": "npm --workspace applications/backend run dev",
+    "start:auth": "firebase emulators:start --only auth --project yet-another-habit-app &",
+    "lint:fix": "npm --workspaces run lint:fix",
+    "build": "npm run lint:fix && npm -ws run build"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.2",
+    "concurrently": "^9.2.1",
+    "eslint": "^9.39.2",
+    "eslint-config-prettier": "^10.1.8",
+    "globals": "^16.5.0",
+    "prettier": "^3.7.4",
+    "typescript-eslint": "^8.50.0"
+  }
+}
