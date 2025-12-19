@@ -1,7 +1,7 @@
 export enum ActivityPeriod {
-  Daily = "daily",
-  Weekly = "weekly",
-  Monthly = "monthly",
+  Daily = 'Daily',
+  Weekly = 'Weekly',
+  Monthly = 'Monthly',
 }
 
 export interface Activity {
