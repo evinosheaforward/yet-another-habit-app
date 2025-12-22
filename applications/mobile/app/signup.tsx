@@ -1,19 +1,13 @@
-import { useMemo, useState } from 'react';
-import { StyleSheet, TextInput, TouchableOpacity } from 'react-native';
+import { useState } from 'react';
+import { TextInput, TouchableOpacity } from 'react-native';
 import { Link, router } from 'expo-router';
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 
 import { auth } from '@/auth/firebaseClient';
-import { useColorScheme } from '@/hooks/use-color-scheme';
-import { Colors } from '@/constants/theme';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 
 export default function SignupScreen() {
-  const theme = useColorScheme() ?? 'light';
-  const c = theme === 'dark' ? Colors.dark : Colors.light;
-  const styles = useMemo(() => makeStyles(c), [c]);
-
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -41,64 +35,78 @@ export default function SignupScreen() {
   }
 
   return (
-    <ThemedView style={styles.screen}>
-      <ThemedView style={styles.card}>
-        <ThemedText type="title" style={styles.title}>
+    <ThemedView className="flex-1 justify-center px-5">
+      <ThemedView className="rounded-[18px] border border-black/10 bg-white p-[18px] dark:border-white/10 dark:bg-neutral-950">
+        <ThemedText type="title" className="mt-1 text-neutral-900 dark:text-white">
           Create account
         </ThemedText>
-        <ThemedText style={styles.subtitle}>
+        <ThemedText className="mb-3 opacity-80 text-neutral-700 dark:text-neutral-300">
           Start building habits.
         </ThemedText>
 
-        <ThemedView style={styles.form}>
+        <ThemedView className="mt-1 gap-3">
           <TextInput
-            style={styles.input}
+            className="rounded-[14px] border border-black/10 bg-white px-4 py-3 text-neutral-900 dark:border-white/10 dark:bg-neutral-950 dark:text-white"
             placeholder="Display name (optional)"
-            placeholderTextColor={c.tabIconDefault}
+            placeholderTextColor="#8E8E93"
             autoCapitalize="words"
             value={displayName}
             onChangeText={setDisplayName}
+            editable={!busy}
           />
 
           <TextInput
-            style={styles.input}
+            className="rounded-[14px] border border-black/10 bg-white px-4 py-3 text-neutral-900 dark:border-white/10 dark:bg-neutral-950 dark:text-white"
             placeholder="Email"
-            placeholderTextColor={c.tabIconDefault}
+            placeholderTextColor="#8E8E93"
             autoCapitalize="none"
             keyboardType="email-address"
             value={email}
             onChangeText={setEmail}
+            editable={!busy}
           />
 
           <TextInput
-            style={styles.input}
+            className="rounded-[14px] border border-black/10 bg-white px-4 py-3 text-neutral-900 dark:border-white/10 dark:bg-neutral-950 dark:text-white"
             placeholder="Password"
-            placeholderTextColor={c.tabIconDefault}
+            placeholderTextColor="#8E8E93"
             secureTextEntry
             value={password}
             onChangeText={setPassword}
+            returnKeyType="done"
+            onSubmitEditing={onSignup}
+            editable={!busy}
           />
 
           {error ? (
-            <ThemedText style={styles.errorText}>{error}</ThemedText>
+            <ThemedText className="-mt-1 text-[13px] text-red-500">{error}</ThemedText>
           ) : null}
 
           <TouchableOpacity
-            style={[styles.primaryButton, busy && styles.buttonDisabled]}
             onPress={onSignup}
             disabled={busy}
             activeOpacity={0.85}
+            className={[
+              'mt-1 rounded-[14px] border border-indigo-500/80 bg-indigo-500/10 py-3',
+              'items-center justify-center',
+              busy ? 'opacity-60' : 'opacity-100',
+            ].join(' ')}
           >
-            <ThemedText type="defaultSemiBold" style={styles.primaryButtonText}>
+            <ThemedText type="defaultSemiBold" className="text-neutral-900 dark:text-white">
               {busy ? 'Creating…' : 'Sign up'}
             </ThemedText>
           </TouchableOpacity>
 
-          <ThemedView style={styles.footerRow}>
-            <ThemedText style={styles.footerText}>Already have an account?</ThemedText>
+          <ThemedView className="mt-2 flex-row items-center justify-center gap-2">
+            <ThemedText className="opacity-80 text-neutral-700 dark:text-neutral-300">
+              Already have an account?
+            </ThemedText>
+
             <Link href="/login" asChild>
               <TouchableOpacity activeOpacity={0.7}>
-                <ThemedText type="link">Log in</ThemedText>
+                <ThemedText type="link" className="text-indigo-500">
+                  Log in
+                </ThemedText>
               </TouchableOpacity>
             </Link>
           </ThemedView>
@@ -106,71 +114,4 @@ export default function SignupScreen() {
       </ThemedView>
     </ThemedView>
   );
-}
-
-function makeStyles(c: typeof Colors.light) {
-  return StyleSheet.create({
-    screen: {
-      flex: 1,
-      padding: 20,
-      justifyContent: 'center',
-    },
-    card: {
-      borderRadius: 18,
-      padding: 18,
-      borderWidth: 1,
-      borderColor: c.tabIconDefault + '33',
-      backgroundColor: c.background,
-      gap: 6,
-    },
-    title: {
-      marginTop: 4,
-    },
-    subtitle: {
-      opacity: 0.8,
-      marginBottom: 10,
-    },
-    form: {
-      gap: 12,
-      marginTop: 6,
-    },
-    input: {
-      borderWidth: 1,
-      borderColor: c.tabIconDefault + '33',
-      borderRadius: 14,
-      paddingHorizontal: 14,
-      paddingVertical: 12,
-      color: c.text,
-      backgroundColor: c.background,
-    },
-    errorText: {
-      color: '#ff4d4f',
-      marginTop: -4,
-    },
-    primaryButton: {
-      marginTop: 4,
-      borderRadius: 14,
-      paddingVertical: 12,
-      alignItems: 'center',
-      borderWidth: 1,
-      borderColor: c.tint,
-      backgroundColor: c.tint + '22',
-    },
-    primaryButtonText: {
-      color: c.text,
-    },
-    buttonDisabled: {
-      opacity: 0.6,
-    },
-    footerRow: {
-      marginTop: 8,
-      flexDirection: 'row',
-      gap: 8,
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    footerText: {
-      opacity: 0.8,
-    },
-  });
 }

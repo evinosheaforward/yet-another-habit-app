@@ -1,11 +1,11 @@
-import { PropsWithChildren, useMemo, useState } from "react";
-import { Platform, StyleSheet, TouchableOpacity, View } from "react-native";
+import { PropsWithChildren, useMemo, useState } from 'react';
+import { TouchableOpacity, View } from 'react-native';
 
-import { ThemedText } from "@/components/themed-text";
-import { ThemedView } from "@/components/themed-view";
-import { IconSymbol } from "@/components/ui/icon-symbol";
-import { Colors } from "@/constants/theme";
-import { useColorScheme } from "@/hooks/use-color-scheme";
+import { ThemedText } from '@/components/themed-text';
+import { ThemedView } from '@/components/themed-view';
+import { IconSymbol } from '@/components/ui/icon-symbol';
+
+import { useColorScheme } from 'nativewind';
 
 type CollapsibleProps = PropsWithChildren & {
   title: string;
@@ -31,10 +31,11 @@ export function Collapsible({
   progressPct = 0,
 }: CollapsibleProps) {
   const [internalOpen, setInternalOpen] = useState(false);
-  const theme = useColorScheme() ?? "light";
 
-  const controlled = typeof isOpen === "boolean";
+  const controlled = typeof isOpen === 'boolean';
   const open = controlled ? isOpen : internalOpen;
+
+  const { colorScheme } = useColorScheme();
 
   const handlePress = useMemo(() => {
     if (controlled) return () => onToggle?.();
@@ -43,125 +44,72 @@ export function Collapsible({
 
   const pct = clampPct(progressPct);
 
-  // Palette (kept simple + modern)
-  const cardBg = theme === "light" ? "#FFFFFF" : "#0E0F12";
-  const border = theme === "light" ? "rgba(0,0,0,0.08)" : "rgba(255,255,255,0.10)";
-  const headerBg = theme === "light" ? "rgba(0,0,0,0.03)" : "rgba(255,255,255,0.06)";
-
-  // “Green loading bar” fill — subtle, elegant
-  const fill = theme === "light" ? "rgba(34,197,94,0.18)" : "rgba(34,197,94,0.22)";
-
   return (
-    <ThemedView style={[styles.card, { backgroundColor: cardBg, borderColor: border }]}>
-      <TouchableOpacity
-        style={styles.headerTouchable}
-        onPress={handlePress}
-        activeOpacity={0.85}
-      >
-        {/* Header row background + progress fill (title only) */}
-        <View style={[styles.headerBg, { backgroundColor: headerBg }]}>
-          <View
-            style={[
-              styles.progressFill,
-              {
-                width: `${pct}%`,
-                backgroundColor: fill,
-              },
-            ]}
-          />
-        </View>
+    <ThemedView className="overflow-hidden rounded-2xl border border-black/10 bg-white dark:border-white/10 dark:bg-neutral-950">
+      <TouchableOpacity onPress={handlePress} activeOpacity={0.85} className="relative">
+        {/* Header row background */}
+        <View className="absolute inset-0 bg-black/[0.03] dark:bg-white/[0.06]" />
+        <View
+          className="absolute inset-y-0 left-0 bg-emerald-500/20 dark:bg-emerald-500/25"
+          style={undefined as any} // intentionally unused; see width component below
+        />
 
-        <View style={styles.headerContent}>
-          <IconSymbol
-            name="chevron.right"
-            size={18}
-            weight="medium"
-            color={theme === "light" ? Colors.light.icon : Colors.dark.icon}
-            style={{ transform: [{ rotate: open ? "90deg" : "0deg" }] }}
-          />
+        <ProgressFill pct={pct} />
 
-          <View style={styles.titleWrap}>
-            <ThemedText type="defaultSemiBold" style={styles.title}>
+        <View className="flex-row items-center gap-2.5 px-3.5 py-3.5">
+          <View className={`text-neutral-700 dark:text-white ${open ? 'rotate-90' : 'rotate-0'}`}>
+            <IconSymbol
+              name="chevron.right"
+              size={18}
+              weight="medium"
+              color={colorScheme === 'dark' ? '#FFFFFF' : '#52525B'}
+            />
+          </View>
+
+          <View className="flex-1 flex-row items-baseline justify-between gap-2.5">
+            <ThemedText
+              type="defaultSemiBold"
+              className="text-[16px] leading-5 text-neutral-900 dark:text-white"
+            >
               {title}
             </ThemedText>
-            <ThemedText style={styles.caption}>{pct}%</ThemedText>
+            <ThemedText className="text-[13px] opacity-65 text-neutral-700 dark:text-neutral-300">
+              {pct}%
+            </ThemedText>
           </View>
         </View>
       </TouchableOpacity>
 
       {open && (
-        <ThemedView style={styles.body}>
-          <View style={[styles.bodyInner, { borderTopColor: border }]}>{children}</View>
+        <ThemedView className="px-3.5 pb-3.5">
+          <View className="border-t border-black/10 pt-3 dark:border-white/10">{children}</View>
         </ThemedView>
       )}
     </ThemedView>
   );
 }
 
-const styles = StyleSheet.create({
-  card: {
-    borderRadius: 16,
-    borderWidth: 1,
-    overflow: "hidden",
-    ...Platform.select({
-      ios: {
-        shadowColor: "#000",
-        shadowOpacity: 0.06,
-        shadowRadius: 12,
-        shadowOffset: { width: 0, height: 6 },
-      },
-      android: {
-        elevation: 2,
-      },
-      default: {},
-    }),
-  },
+/**
+ * ProgressFill
+ * - Pure Tailwind/NativeWind (no style prop)
+ * - Renders a smooth-ish bar using 50 blocks (2% granularity)
+ * - Keeps your “subtle elegant green fill” vibe behind the header content
+ */
+function ProgressFill({ pct }: { pct: number }) {
+  const blocks = 50; // 2% increments
+  const filled = Math.round((pct / 100) * blocks);
 
-  headerTouchable: {
-    position: "relative",
-  },
-
-  headerBg: {
-    ...StyleSheet.absoluteFillObject,
-  },
-
-  progressFill: {
-    height: "100%",
-  },
-
-  headerContent: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 14,
-    paddingVertical: 14,
-    gap: 10,
-  },
-
-  titleWrap: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "baseline",
-    justifyContent: "space-between",
-    gap: 10,
-  },
-
-  title: {
-    fontSize: 16,
-    lineHeight: 20,
-  },
-
-  caption: {
-    fontSize: 13,
-    opacity: 0.65,
-  },
-
-  body: {
-    paddingHorizontal: 14,
-    paddingBottom: 14,
-  },
-
-  bodyInner: {
-    paddingTop: 12,
-    borderTopWidth: 1,
-  },
-});
+  return (
+    <View className="absolute inset-0 flex-row dark:text-white">
+      {Array.from({ length: blocks }).map((_, i) => (
+        <View
+          key={i}
+          className={[
+            'flex-1',
+            i < filled ? 'bg-emerald-500/20 dark:bg-emerald-500/25' : 'bg-transparent',
+          ].join(' ')}
+        />
+      ))}
+    </View>
+  );
+}
