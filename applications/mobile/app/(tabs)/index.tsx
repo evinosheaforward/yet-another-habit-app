@@ -1,24 +1,22 @@
-import { Image } from "expo-image";
-import { useMemo, useState } from "react";
-import { Alert, Pressable, StyleSheet, View } from "react-native";
-import { Link, router } from "expo-router";
+import { Image } from 'expo-image';
+import { useMemo, useState } from 'react';
+import { Alert, Pressable, View } from 'react-native';
+import { Link, router } from 'expo-router';
 
-import ParallaxScrollView from "@/components/parallax-scroll-view";
-import { ThemedText } from "@/components/themed-text";
-import { ThemedView } from "@/components/themed-view";
+import ParallaxScrollView from '@/components/parallax-scroll-view';
+import { ThemedText } from '@/components/themed-text';
+import { ThemedView } from '@/components/themed-view';
 
-import { getAuth, signOut } from "firebase/auth";
-import { app } from "@/auth/firebaseClient";
+import { getAuth, signOut } from 'firebase/auth';
+import { app } from '@/auth/firebaseClient';
 
 export default function HomeScreen() {
   const auth = useMemo(() => getAuth(app), []);
   const [isSigningOut, setIsSigningOut] = useState(false);
 
-  const email = auth.currentUser?.email ?? "";
+  const email = auth.currentUser?.email ?? '';
   const displayName =
-    auth.currentUser?.displayName ??
-    (email ? email.split("@")[0] : null) ??
-    "there";
+    auth.currentUser?.displayName ?? (email ? email.split('@')[0] : null) ?? 'there';
 
   async function handleLogout() {
     if (isSigningOut) return;
@@ -26,12 +24,9 @@ export default function HomeScreen() {
     try {
       setIsSigningOut(true);
       await signOut(auth);
-
-      // Send the user somewhere sensible after logout.
-      // Change this route to your actual login screen.
-      router.replace("/login");
+      router.replace('/login');
     } catch (e: any) {
-      Alert.alert("Logout failed", e?.message ?? "Unknown error");
+      Alert.alert('Logout failed', e?.message ?? 'Unknown error');
     } finally {
       setIsSigningOut(false);
     }
@@ -39,58 +34,65 @@ export default function HomeScreen() {
 
   return (
     <ParallaxScrollView
-      headerBackgroundColor={{ light: "#0B1220", dark: "#0B1220" }}
+      headerBackgroundColor={{ light: '#0B1220', dark: '#0B1220' }}
       headerImage={
-        <View style={styles.hero}>
+        <View className="h-[240px] w-full overflow-hidden">
           <Image
-            source={require("@/assets/images/icon-partial.png")}
-            style={StyleSheet.absoluteFillObject}
+            source={require('@/assets/images/icon-partial.png')}
+            className="absolute inset-0"
             contentFit="cover"
             transition={200}
           />
 
           {/* Readability overlay */}
-          <View style={styles.heroOverlay} />
+          <View className="absolute inset-0 bg-[#0B1220]/55" />
 
           {/* Branding */}
-          <View style={styles.heroContent}>
-            <ThemedText style={[styles.brandKicker, styles.heroText]}>
+          <View className="flex-1 justify-end gap-1.5 px-[18px] pb-[18px]">
+            <ThemedText className="text-white/90 tracking-[0.3px]">
               Yet Another Habit App
             </ThemedText>
 
-            <ThemedText type="title" style={[styles.heroTitle, styles.heroText]}>
+            <ThemedText type="title" className="text-white leading-[40px]">
               Welcome, {displayName}
             </ThemedText>
 
-            <ThemedText style={[styles.heroSubtitle, styles.heroTextMuted]}>
+            <ThemedText className="max-w-[420px] text-white/85 leading-5">
               Keep it simple. Track what matters. Build momentum.
             </ThemedText>
           </View>
         </View>
       }
     >
-      <ThemedView style={styles.container}>
+      <ThemedView className="gap-3.5 pb-7 pt-1">
         {/* Status / account */}
-        <ThemedView style={styles.card}>
-          <ThemedText type="subtitle" style={styles.cardTitle}>
+        <ThemedView className="gap-2.5 rounded-[18px] border border-black/10 bg-white p-4 dark:border-white/10 dark:bg-neutral-950">
+          <ThemedText type="subtitle" className="mb-0.5 text-neutral-900 dark:text-white">
             Your account
           </ThemedText>
 
-          <ThemedText style={styles.muted}>
-            {email ? `Signed in as ${email}` : "Signed in"}
+          <ThemedText className="opacity-75 leading-5 text-neutral-700 dark:text-neutral-300">
+            {email ? `Signed in as ${email}` : 'Signed in'}
           </ThemedText>
 
-          <View style={styles.divider} />
+          <View className="my-1.5 h-px bg-black/10 dark:bg-white/10" />
 
-          <View style={styles.row}>
-            <View style={styles.rowLeft}>
-              <ThemedText type="defaultSemiBold">Today</ThemedText>
-              <ThemedText style={styles.muted}>Ready to check in?</ThemedText>
+          <View className="flex-row items-center justify-between gap-3">
+            <View className="flex-1 gap-0.5">
+              <ThemedText type="defaultSemiBold" className="text-neutral-900 dark:text-white">
+                Today
+              </ThemedText>
+              <ThemedText className="opacity-75 leading-5 text-neutral-700 dark:text-neutral-300">
+                Ready to check in?
+              </ThemedText>
             </View>
 
             <Link href="/(tabs)/activities" asChild>
-              <Pressable style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]}>
-                <ThemedText type="defaultSemiBold" style={styles.primaryButtonText}>
+              <Pressable
+                className="rounded-[14px] border border-white/20 bg-white/10 px-3.5 py-2.5 dark:border-white/15 dark:bg-white/10"
+                style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}
+              >
+                <ThemedText type="defaultSemiBold" className="text-white/95">
                   View activities
                 </ThemedText>
               </Pressable>
@@ -99,28 +101,29 @@ export default function HomeScreen() {
         </ThemedView>
 
         {/* Quick hint */}
-        <ThemedView style={styles.card}>
-          <ThemedText type="subtitle" style={styles.cardTitle}>
+        <ThemedView className="gap-2.5 rounded-[18px] border border-black/10 bg-white p-4 dark:border-white/10 dark:bg-neutral-950">
+          <ThemedText type="subtitle" className="text-neutral-900 dark:text-white">
             Tip
           </ThemedText>
-          <ThemedText style={styles.muted}>
+          <ThemedText className="opacity-75 leading-5 text-neutral-700 dark:text-neutral-300">
             Start small: pick one habit you can do in under 2 minutes. Consistency beats intensity.
           </ThemedText>
         </ThemedView>
 
         {/* Logout */}
-        <ThemedView style={styles.footer}>
+        <ThemedView className="mt-0.5">
           <Pressable
             onPress={handleLogout}
             disabled={isSigningOut}
-            style={({ pressed }) => [
-              styles.logoutButton,
-              isSigningOut && styles.disabled,
-              pressed && !isSigningOut && styles.pressed,
-            ]}
+            className={[
+              'items-center justify-center rounded-[16px] border px-4 py-[13px]',
+              'border-black/15 bg-transparent dark:border-white/15',
+              isSigningOut ? 'opacity-55' : 'opacity-100',
+            ].join(' ')}
+            style={({ pressed }) => ({ opacity: pressed && !isSigningOut ? 0.85 : undefined })}
           >
-            <ThemedText type="defaultSemiBold">
-              {isSigningOut ? "Logging out…" : "Logout"}
+            <ThemedText type="defaultSemiBold" className="text-neutral-900 dark:text-white">
+              {isSigningOut ? 'Logging out…' : 'Logout'}
             </ThemedText>
           </Pressable>
         </ThemedView>
@@ -128,112 +131,3 @@ export default function HomeScreen() {
     </ParallaxScrollView>
   );
 }
-
-const styles = StyleSheet.create({
-  // --- layout ---
-  container: {
-    gap: 14,
-    paddingBottom: 28,
-    paddingTop: 4,
-  },
-
-  // --- hero ---
-  hero: {
-    height: 240,
-    width: "100%",
-    overflow: "hidden",
-  },
-  heroOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(11,18,32,0.55)",
-  },
-  heroContent: {
-    flex: 1,
-    justifyContent: "flex-end",
-    paddingHorizontal: 18,
-    paddingBottom: 18,
-    gap: 6,
-  },
-  brandKicker: {
-    opacity: 0.9,
-    letterSpacing: 0.3,
-  },
-  heroTitle: {
-    lineHeight: 40,
-  },
-  heroSubtitle: {
-    lineHeight: 20,
-    maxWidth: 420,
-  },
-  heroText: {
-    color: "#FFFFFF",
-  },
-  heroTextMuted: {
-    color: "rgba(255,255,255,0.85)",
-  },
-
-  // --- cards ---
-  card: {
-    gap: 10,
-    padding: 16,
-    borderRadius: 18,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: "rgba(127,127,127,0.28)",
-  },
-  cardTitle: {
-    marginBottom: 2,
-  },
-  muted: {
-    opacity: 0.75,
-    lineHeight: 20,
-  },
-  divider: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: "rgba(127,127,127,0.22)",
-    marginVertical: 6,
-  },
-
-  // --- row / actions ---
-  row: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 12,
-  },
-  rowLeft: {
-    flex: 1,
-    gap: 2,
-  },
-  primaryButton: {
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderRadius: 14,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: "rgba(255,255,255,0.22)",
-    backgroundColor: "rgba(255,255,255,0.08)",
-  },
-  primaryButtonText: {
-    opacity: 0.95,
-  },
-
-  // --- footer / logout ---
-  footer: {
-    marginTop: 2,
-  },
-  logoutButton: {
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 13,
-    borderRadius: 16,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: "rgba(127,127,127,0.35)",
-  },
-
-  // --- states ---
-  pressed: {
-    opacity: 0.85,
-  },
-  disabled: {
-    opacity: 0.55,
-  },
-});

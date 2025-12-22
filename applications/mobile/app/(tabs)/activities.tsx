@@ -1,25 +1,29 @@
-import { useEffect, useMemo, useState } from "react";
-import { FlatList, Pressable, StyleSheet, View, KeyboardAvoidingView, Modal, Platform, TextInput } from "react-native";
-import { createActivity , getActivities } from "@/api/activities";
+import { useEffect, useState } from 'react';
+import {
+  FlatList,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Pressable,
+  TextInput,
+  View,
+} from 'react-native';
+import { createActivity, getActivities } from '@/api/activities';
 
+import { Collapsible } from '@/components/ui/collapsible';
+import { ThemedText } from '@/components/themed-text';
+import { ThemedView } from '@/components/themed-view';
 
-import { Collapsible } from "@/components/ui/collapsible";
-import { ThemedText } from "@/components/themed-text";
-import { ThemedView } from "@/components/themed-view";
-import { useColorScheme } from "@/hooks/use-color-scheme";
-
-import { Activity, ActivityPeriod } from "@yet-another-habit-app/shared-types";
-
+import { Activity, ActivityPeriod } from '@yet-another-habit-app/shared-types';
 
 export default function ActivitiesScreen() {
-  const theme = useColorScheme() ?? "light";
-
   const [period, setPeriod] = useState<ActivityPeriod>(ActivityPeriod.Daily);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [openId, setOpenId] = useState<string | null>(null);
-    const [createOpen, setCreateOpen] = useState(false);
-  const [newTitle, setNewTitle] = useState("");
-  const [newDescription, setNewDescription] = useState("");
+
+  const [createOpen, setCreateOpen] = useState(false);
+  const [newTitle, setNewTitle] = useState('');
+  const [newDescription, setNewDescription] = useState('');
   const [saving, setSaving] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
 
@@ -33,7 +37,7 @@ export default function ActivitiesScreen() {
 
     const title = newTitle.trim();
     if (!title) {
-      setCreateError("Title is required.");
+      setCreateError('Title is required.');
       return;
     }
 
@@ -41,21 +45,20 @@ export default function ActivitiesScreen() {
       setSaving(true);
       await createActivity({
         title,
-        description: newDescription.trim() || undefined,
+        description: newDescription.trim(),
         period,
       });
 
       setCreateOpen(false);
-      setNewTitle("");
-      setNewDescription("");
+      setNewTitle('');
+      setNewDescription('');
       await refresh();
     } catch (e: any) {
-      setCreateError(e?.message ?? "Failed to create activity.");
+      setCreateError(e?.message ?? 'Failed to create activity.');
     } finally {
       setSaving(false);
     }
   }
-
 
   useEffect(() => {
     let cancelled = false;
@@ -64,7 +67,7 @@ export default function ActivitiesScreen() {
       const data = await getActivities(period);
       if (!cancelled) {
         setActivities(data);
-        setOpenId(null); // close any open dropdown when switching tabs
+        setOpenId(null);
       }
     })();
 
@@ -77,54 +80,46 @@ export default function ActivitiesScreen() {
     setOpenId((cur) => (cur === id ? null : id));
   }
 
-  const colors = useMemo(() => {
-    return {
-      pillBg: theme === "light" ? "rgba(0,0,0,0.05)" : "rgba(255,255,255,0.08)",
-      pillActiveBg: theme === "light" ? "rgba(0,0,0,0.10)" : "rgba(255,255,255,0.14)",
-      pillBorder: theme === "light" ? "rgba(0,0,0,0.08)" : "rgba(255,255,255,0.10)",
-      headerRowBorder: theme === "light" ? "rgba(0,0,0,0.08)" : "rgba(255,255,255,0.12)",
-      modalOverlay: "rgba(0,0,0,0.45)",
-      modalCardBg: theme === "light" ? "#fff" : "rgba(20,20,20,1)",
-      inputBg: theme === "light" ? "rgba(0,0,0,0.04)" : "rgba(255,255,255,0.06)",
-      inputBorder: theme === "light" ? "rgba(0,0,0,0.10)" : "rgba(255,255,255,0.14)",
-      buttonBg: theme === "light" ? "rgba(0,0,0,0.90)" : "rgba(255,255,255,0.92)",
-      buttonText: theme === "light" ? "#fff" : "#000",
-      secondaryBtnBg: theme === "light" ? "rgba(0,0,0,0.06)" : "rgba(255,255,255,0.10)",
-    };
-  }, [theme]);
-
   return (
-    <ThemedView style={styles.container}>
-      <View style={[styles.headerRow, { borderColor: colors.headerRowBorder }]}>
-        <ThemedText type="title" style={styles.headerTitle}>
+    <ThemedView className="flex-1 px-4 pt-6">
+      {/* Header */}
+      <View className="flex-row items-center justify-between border-b border-black/10 pb-2 dark:border-white/10">
+        <ThemedText type="title" className="mb-3 text-neutral-900 dark:text-white">
           Activities
         </ThemedText>
 
         <Pressable
           onPress={() => setCreateOpen(true)}
-          style={[styles.createBtn, { backgroundColor: colors.pillActiveBg, borderColor: colors.pillBorder }]}
           accessibilityRole="button"
+          className="rounded-full border border-black/10 bg-black/10 px-3 py-2 dark:border-white/10 dark:bg-white/10"
         >
-          <ThemedText style={styles.createBtnText}>+ Create</ThemedText>
+          <ThemedText className="text-[13px] font-semibold text-neutral-900 dark:text-white">
+            + Create
+          </ThemedText>
         </Pressable>
       </View>
 
-      {/* Period tabs */}
-      <View style={[styles.pills, { borderColor: colors.pillBorder, backgroundColor: colors.pillBg }]}>
+      {/* Period pills */}
+      <View className="mt-4 flex-row gap-1 rounded-full border border-black/10 bg-black/5 p-1 dark:border-white/10 dark:bg-white/10">
         {Object.values(ActivityPeriod).map((p) => {
           const active = p === period;
           return (
             <Pressable
               key={p}
               onPress={() => setPeriod(p)}
-              style={[
-                styles.pill,
-                active && { backgroundColor: colors.pillActiveBg },
-              ]}
               accessibilityRole="button"
               accessibilityState={{ selected: active }}
+              className={[
+                'flex-1 items-center justify-center rounded-full py-2.5',
+                active ? 'bg-black/10 dark:bg-white/15' : 'bg-transparent',
+              ].join(' ')}
             >
-              <ThemedText style={[styles.pillText, active && styles.pillTextActive]}>
+              <ThemedText
+                className={[
+                  'text-[13px] text-neutral-900 dark:text-white',
+                  active ? 'opacity-100' : 'opacity-75',
+                ].join(' ')}
+              >
                 {p}
               </ThemedText>
             </Pressable>
@@ -132,67 +127,71 @@ export default function ActivitiesScreen() {
         })}
       </View>
 
-            <Modal
+      {/* Create modal */}
+      <Modal
         visible={createOpen}
         animationType="fade"
         transparent
         onRequestClose={() => (saving ? null : setCreateOpen(false))}
       >
-        <View style={[styles.modalOverlay, { backgroundColor: colors.modalOverlay }]}>
-          <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined}>
-            <ThemedView style={[styles.modalCard, { backgroundColor: colors.modalCardBg }]}>
-              <ThemedText type="subtitle" style={styles.modalTitle}>
+        <View className="flex-1 justify-center bg-black/50 p-[18px]">
+          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+            <ThemedView className="rounded-[14px] border border-black/10 bg-white p-4 dark:border-white/10 dark:bg-neutral-950">
+              <ThemedText type="subtitle" className="mb-1 text-neutral-900 dark:text-white">
                 Create activity
               </ThemedText>
 
-              <ThemedText style={styles.modalHint}>
-                Period: <ThemedText style={{ fontWeight: "600" }}>{period}</ThemedText>
+              <ThemedText className="mb-2 opacity-70 text-neutral-700 dark:text-neutral-300">
+                Period:{' '}
+                <ThemedText className="font-semibold text-neutral-900 dark:text-white">
+                  {period}
+                </ThemedText>
               </ThemedText>
 
               <TextInput
                 value={newTitle}
                 onChangeText={setNewTitle}
                 placeholder="Title"
-                placeholderTextColor={theme === "light" ? "rgba(0,0,0,0.45)" : "rgba(255,255,255,0.45)"}
+                placeholderTextColor="#8E8E93"
                 editable={!saving}
-                style={[
-                  styles.input,
-                  { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, color: theme === "light" ? "#000" : "#fff" },
-                ]}
+                className="mt-2 rounded-[12px] border border-black/10 bg-black/5 px-3 py-2.5 text-[15px] text-neutral-900 dark:border-white/10 dark:bg-white/10 dark:text-white"
               />
 
               <TextInput
                 value={newDescription}
                 onChangeText={setNewDescription}
                 placeholder="Description (optional)"
-                placeholderTextColor={theme === "light" ? "rgba(0,0,0,0.45)" : "rgba(255,255,255,0.45)"}
+                placeholderTextColor="#8E8E93"
                 editable={!saving}
                 multiline
-                style={[
-                  styles.input,
-                  styles.textarea,
-                  { backgroundColor: colors.inputBg, borderColor: colors.inputBorder, color: theme === "light" ? "#000" : "#fff" },
-                ]}
+                textAlignVertical="top"
+                className="mt-2 min-h-[90px] rounded-[12px] border border-black/10 bg-black/5 px-3 py-2.5 text-[15px] text-neutral-900 dark:border-white/10 dark:bg-white/10 dark:text-white"
               />
 
-              {createError ? <ThemedText style={styles.errorText}>{createError}</ThemedText> : null}
+              {createError ? (
+                <ThemedText className="mt-2 text-[13px] text-red-500">{createError}</ThemedText>
+              ) : null}
 
-              <View style={styles.modalButtons}>
+              <View className="mt-4 flex-row justify-end gap-2.5">
                 <Pressable
                   onPress={() => setCreateOpen(false)}
                   disabled={saving}
-                  style={[styles.secondaryBtn, { backgroundColor: colors.secondaryBtnBg }]}
+                  className={[
+                    'rounded-[12px] px-3.5 py-2.5',
+                    'bg-black/5 dark:bg-white/10',
+                    saving ? 'opacity-60' : 'opacity-100',
+                  ].join(' ')}
                 >
-                  <ThemedText>Cancel</ThemedText>
+                  <ThemedText className="text-neutral-900 dark:text-white">Cancel</ThemedText>
                 </Pressable>
 
                 <Pressable
                   onPress={onCreate}
                   disabled={saving}
-                  style={[styles.primaryBtn, { backgroundColor: colors.buttonBg }]}
+                  className="rounded-[12px] px-3.5 py-2.5 bg-black/90 dark:bg-white/90 opacity-100"
                 >
-                  <ThemedText style={{ color: colors.buttonText }}>
-                    {saving ? "Creating..." : "Create"}
+                  <ThemedText className="text-neutral-50 dark:text-white">
+                    {saving ? 'Creating...' : 'Create'}
                   </ThemedText>
                 </Pressable>
               </View>
@@ -201,11 +200,12 @@ export default function ActivitiesScreen() {
         </View>
       </Modal>
 
+      {/* List */}
       <FlatList
         data={activities}
         keyExtractor={(a) => a.id}
-        contentContainerStyle={styles.listContent}
-        ItemSeparatorComponent={() => <View style={styles.separator} />}
+        contentContainerClassName="pt-4 pb-7"
+        ItemSeparatorComponent={() => <View className="h-3 dark:text-white" />}
         renderItem={({ item }) => (
           <Collapsible
             title={item.title}
@@ -213,10 +213,17 @@ export default function ActivitiesScreen() {
             isOpen={openId === item.id}
             onToggle={() => toggleActivity(item.id)}
           >
-            <ThemedText style={styles.description}>{item.description}</ThemedText>
-            <View style={styles.metaRow}>
-              <ThemedText style={styles.metaLabel}>Complete</ThemedText>
-              <ThemedText style={styles.metaValue}>{item.completionPercent}%</ThemedText>
+            <ThemedText className="opacity-85 leading-5 text-neutral-700 dark:text-neutral-300">
+              {item.description}
+            </ThemedText>
+
+            <View className="mt-2.5 flex-row items-center justify-between">
+              <ThemedText className="text-[13px] opacity-60 text-neutral-700 dark:text-neutral-300">
+                Complete
+              </ThemedText>
+              <ThemedText className="text-[13px] opacity-90 text-neutral-900 dark:text-white">
+                {item.completionPercent}%
+              </ThemedText>
             </View>
           </Collapsible>
         )}
@@ -224,129 +231,3 @@ export default function ActivitiesScreen() {
     </ThemedView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    paddingHorizontal: 16,
-    paddingTop: 24,
-  },
-  headerTitle: {
-    marginBottom: 12,
-  },
-
-  pills: {
-    flexDirection: "row",
-    borderWidth: 1,
-    borderRadius: 999,
-    padding: 4,
-    gap: 4,
-    marginBottom: 16,
-  },
-  pill: {
-    flex: 1,
-    paddingVertical: 10,
-    borderRadius: 999,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  pillText: {
-    fontSize: 13,
-    opacity: 0.75,
-  },
-  pillTextActive: {
-    opacity: 1,
-  },
-
-  listContent: {
-    paddingBottom: 28,
-  },
-  separator: {
-    height: 12,
-  },
-
-  description: {
-    opacity: 0.85,
-    lineHeight: 20,
-  },
-  metaRow: {
-    marginTop: 10,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  metaLabel: {
-    opacity: 0.6,
-    fontSize: 13,
-  },
-  metaValue: {
-    fontSize: 13,
-    opacity: 0.9,
-  },
-    headerRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingBottom: 10,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-  },
-  createBtn: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 999,
-    borderWidth: StyleSheet.hairlineWidth,
-  },
-  createBtnText: {
-    fontSize: 13,
-    fontWeight: "600",
-  },
-
-  modalOverlay: {
-    flex: 1,
-    padding: 18,
-    justifyContent: "center",
-  },
-  modalCard: {
-    borderRadius: 14,
-    padding: 14,
-  },
-  modalTitle: {
-    marginBottom: 6,
-  },
-  modalHint: {
-    opacity: 0.7,
-    marginBottom: 10,
-  },
-  input: {
-    borderWidth: StyleSheet.hairlineWidth,
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    marginTop: 10,
-    fontSize: 15,
-  },
-  textarea: {
-    minHeight: 90,
-    textAlignVertical: "top",
-  },
-  errorText: {
-    marginTop: 10,
-    opacity: 0.9,
-  },
-  modalButtons: {
-    marginTop: 14,
-    flexDirection: "row",
-    justifyContent: "flex-end",
-    gap: 10,
-  },
-  secondaryBtn: {
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 12,
-  },
-  primaryBtn: {
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 12,
-  },
-});
