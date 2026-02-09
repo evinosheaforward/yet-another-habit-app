@@ -11,7 +11,9 @@
     "backend": "npm --workspace applications/backend run dev",
     "start:auth": "firebase emulators:start --only auth --project yet-another-habit-app &",
     "lint:fix": "npm --workspaces run lint:fix",
-    "build": "npm run lint:fix && npm -ws run build"
+    "build": "npm run lint:fix && npm -ws run build",
+    "test": "npm --workspace applications/mobile run test",
+    "test:e2e": "maestro test .maestro/"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.2",

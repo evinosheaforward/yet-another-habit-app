@@ -1,0 +1,44 @@
+appId: com.anonymous.yetanotherhabitapp
+---
+# Activities flow - tests the activities tab and creation modal
+# Assumes the user is already logged in (run after login flow or with pre-seeded auth)
+
+- launchApp
+
+# Navigate to Activities tab
+- tapOn: "Activities"
+
+# Verify the activities screen loaded
+- assertVisible: "Activities"
+
+# Verify period filter pills are visible
+- assertVisible: "Daily"
+- assertVisible: "Weekly"
+- assertVisible: "Monthly"
+
+# Switch period filter
+- tapOn: "Weekly"
+
+# Go back to Daily
+- tapOn: "Daily"
+
+# Open create activity modal
+- tapOn: "+ Create"
+
+# Verify modal is visible
+- assertVisible: "Create activity"
+
+# Fill in the form
+- tapOn:
+    hint: "Title"
+- inputText: "Morning Run"
+
+- tapOn:
+    hint: "Description (optional)"
+- inputText: "30 minute jog around the park"
+
+# Cancel the modal
+- tapOn: "Cancel"
+
+# Verify modal closed
+- assertVisible: "Activities"

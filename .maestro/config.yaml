@@ -1,0 +1,9 @@
+# Maestro configuration
+# Run all flows: maestro test .maestro/
+# Run single flow: maestro test .maestro/login.yaml
+
+executionOrder:
+  continueOnFailure: false
+  flows:
+    - login
+    - activities

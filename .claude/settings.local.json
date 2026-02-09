@@ -1,0 +1,30 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep:*)",
+      "Bash(npm --version:*)",
+      "Bash(node --version:*)",
+      "Bash(npm run build)",
+      "Bash(npm run lint:fix)",
+      "Bash(npm run test)",
+      "Bash(npm --workspace applications/backend run build)",
+      "Bash(npm --workspace applications/backend run lint*)",
+      "Bash(npm --workspace applications/backend run start)",
+      "Bash(npm --workspace applications/backend run migrate*)",
+      "Bash(npm --workspace applications/backend run db:reset)",
+      "Bash(npm --workspace applications/backend run test*)",
+      "Bash(npm --workspace applications/mobile run build)",
+      "Bash(npm --workspace applications/mobile run lint*)",
+      "Bash(npm --workspace applications/mobile run android)",
+      "Bash(npm --workspace applications/mobile run test*)",
+      "Bash(npm --workspace libraries/shared-types run build)",
+      "Bash(npm --workspace libraries/shared-types run lint*)",
+      "Bash(npm --workspace libraries/shared-types run test*)",
+      "Bash(npx expo *)",
+      "Bash(maestro *)",
+      "Bash(npm run test:e2e)",
+      "Bash(find:*)",
+      "Bash(node tools/mcp-server.mjs:*)"
+    ]
+  }
+}
