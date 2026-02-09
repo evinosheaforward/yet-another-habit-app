@@ -1,7 +1,12 @@
 import type { Request, Response } from "express";
 import { Router } from "express";
 import type { ActivityPeriod } from "@yet-another-habit-app/shared-types";
-import { createActivityForUser, getActivitiesForUser } from "../db/activitiesModel";
+import {
+  createActivityForUser,
+  getActivitiesForUser,
+  updateActivityCount,
+} from "../db/activitiesModel";
+import { db } from "../db/knex.js";
 
 const router = Router();
 
@@ -33,7 +38,7 @@ router.post("/activities", async (req: Request, res: Response) => {
   const authedUid = req.auth?.uid;
   if (!authedUid) return res.status(401).json({ error: "Not authenticated" });
 
-  const { title, description, period } = req.body ?? {};
+  const { title, description, period, goalCount } = req.body ?? {};
 
   if (typeof title !== "string" || title.trim().length === 0) {
     return res.status(400).json({ error: "title is required" });
@@ -47,14 +52,45 @@ router.post("/activities", async (req: Request, res: Response) => {
     return res.status(400).json({ error: "period must be daily|weekly|monthly" });
   }
 
+  const parsedGoalCount =
+    goalCount != null ? Math.floor(Number(goalCount)) : 1;
+  if (!Number.isFinite(parsedGoalCount) || parsedGoalCount < 1) {
+    return res.status(400).json({ error: "goalCount must be a positive integer" });
+  }
+
   const activity = await createActivityForUser(authedUid, {
     title: title.trim(),
     description: description?.trim() || null,
     period,
+    goalCount: parsedGoalCount,
   });
 
   return res.status(201).json({ activity });
 });
 
+
+router.post("/activities/:activityId/history", async (req: Request, res: Response) => {
+  const authedUid = req.auth?.uid;
+  if (!authedUid) return res.status(401).json({ error: "Not authenticated" });
+
+  const { activityId } = req.params;
+  const { delta } = req.body ?? {};
+
+  if (delta !== 1 && delta !== -1) {
+    return res.status(400).json({ error: "delta must be 1 or -1" });
+  }
+
+  // Look up the activity to get its period
+  const activity = await db("activities")
+    .where({ id: activityId, user_id: authedUid })
+    .first();
+
+  if (!activity) {
+    return res.status(404).json({ error: "Activity not found" });
+  }
+
+  const count = await updateActivityCount(activityId, authedUid, activity.period, delta);
+  return res.json({ count });
+});
 
 export default router;

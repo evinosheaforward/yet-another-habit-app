@@ -1,13 +1,15 @@
 export enum ActivityPeriod {
-  Daily = 'Daily',
-  Weekly = 'Weekly',
-  Monthly = 'Monthly',
+  Daily = 'daily',
+  Weekly = 'weekly',
+  Monthly = 'monthly',
 }
 
 export interface Activity {
   id: string;
   title: string;
   description: string;
+  goalCount: number;
+  count: number;
   completionPercent: number;
   period: ActivityPeriod;
 }

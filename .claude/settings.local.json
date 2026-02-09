@@ -24,11 +24,21 @@
       "Bash(maestro *)",
       "Bash(npm run test:e2e)",
       "Bash(find:*)",
-      "Bash(node tools/mcp-server.mjs:*)"
+      "Bash(node tools/mcp-server.mjs:*)",
+      "mcp__project-tools__build_workspace",
+      "Bash(npx --workspace libraries/shared-types tsc:*)",
+      "Bash(npm install:*)",
+      "Bash(node -e:*)",
+      "Bash(ls:*)",
+      "mcp__project-tools__lint_all",
+      "mcp__project-tools__test_unit",
+      "Bash(npm ls:*)",
+      "mcp__project-tools__build_all",
+      "mcp__project-tools__migrate"
     ]
   },
+  "enableAllProjectMcpServers": true,
   "enabledMcpjsonServers": [
     "project-tools"
-  ],
-  "enableAllProjectMcpServers": true
+  ]
 }

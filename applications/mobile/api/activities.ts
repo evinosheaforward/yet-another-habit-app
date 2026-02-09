@@ -84,6 +84,7 @@ export async function createActivity(input: {
   title: string;
   description?: string;
   period: ActivityPeriod;
+  goalCount?: number;
 }): Promise<Activity> {
   const title = input.title.trim();
   if (!title) throw new Error('Title is required.');
@@ -96,11 +97,73 @@ export async function createActivity(input: {
       title,
       description: input.description?.trim() || undefined,
       period: input.period,
-      // keep parity with your existing backend GET signature
+      goalCount: input.goalCount ?? 1,
       userId: uid,
     },
   });
 
   invalidateActivitiesCache(input.period);
   return json.activity;
+}
+
+// --- Debounced activity count updates ---
+
+type PendingDelta = {
+  timer: ReturnType<typeof setTimeout>;
+  accumulated: number;
+};
+
+const pendingDeltas = new Map<string, PendingDelta>();
+const DEBOUNCE_MS = 500;
+
+export async function updateActivityCount(
+  activityId: string,
+  delta: number,
+): Promise<{ count: number }> {
+  const { token } = await getAuthedContext();
+
+  const json = await apiFetch<{ count: number }>('POST', `/activities/${activityId}/history`, {
+    token,
+    body: { delta },
+  });
+
+  invalidateActivitiesCache();
+  return json;
+}
+
+export function debouncedUpdateActivityCount(
+  activityId: string,
+  delta: number,
+  onResult: (count: number) => void,
+  onError: (err: Error) => void,
+): void {
+  const existing = pendingDeltas.get(activityId);
+
+  if (existing) {
+    clearTimeout(existing.timer);
+    existing.accumulated += delta;
+  }
+
+  const accumulated = existing ? existing.accumulated : delta;
+
+  const timer = setTimeout(async () => {
+    pendingDeltas.delete(activityId);
+    if (accumulated === 0) return;
+
+    // Send individual +1/-1 calls for the accumulated delta
+    // This ensures the backend validates each step
+    try {
+      const sign = accumulated > 0 ? 1 : -1;
+      let lastCount = 0;
+      for (let i = 0; i < Math.abs(accumulated); i++) {
+        const result = await updateActivityCount(activityId, sign);
+        lastCount = result.count;
+      }
+      onResult(lastCount);
+    } catch (err) {
+      onError(err instanceof Error ? err : new Error(String(err)));
+    }
+  }, DEBOUNCE_MS);
+
+  pendingDeltas.set(activityId, { timer, accumulated });
 }

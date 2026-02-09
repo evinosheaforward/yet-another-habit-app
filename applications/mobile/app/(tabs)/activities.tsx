@@ -8,13 +8,17 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { createActivity, getActivities } from '@/api/activities';
+import { createActivity, getActivities, debouncedUpdateActivityCount } from '@/api/activities';
 
 import { Collapsible } from '@/components/ui/collapsible';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 
 import { Activity, ActivityPeriod } from '@yet-another-habit-app/shared-types';
+
+function capitalize(s: string) {
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
 
 export default function ActivitiesScreen() {
   const [period, setPeriod] = useState<ActivityPeriod>(ActivityPeriod.Daily);
@@ -24,11 +28,12 @@ export default function ActivitiesScreen() {
   const [createOpen, setCreateOpen] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const [newDescription, setNewDescription] = useState('');
+  const [newGoalCount, setNewGoalCount] = useState('1');
   const [saving, setSaving] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
 
   async function refresh() {
-    const data = await getActivities(period);
+    const data = await getActivities(period, { force: true });
     setActivities(data);
   }
 
@@ -41,17 +46,25 @@ export default function ActivitiesScreen() {
       return;
     }
 
+    const goalCount = Math.floor(Number(newGoalCount));
+    if (!Number.isFinite(goalCount) || goalCount < 1) {
+      setCreateError('Goal count must be a positive number.');
+      return;
+    }
+
     try {
       setSaving(true);
       await createActivity({
         title,
         description: newDescription.trim(),
         period,
+        goalCount,
       });
 
       setCreateOpen(false);
       setNewTitle('');
       setNewDescription('');
+      setNewGoalCount('1');
       await refresh();
     } catch (e: any) {
       setCreateError(e?.message ?? 'Failed to create activity.');
@@ -78,6 +91,32 @@ export default function ActivitiesScreen() {
 
   function toggleActivity(id: string) {
     setOpenId((cur) => (cur === id ? null : id));
+  }
+
+  function handleDelta(activityId: string, delta: number) {
+    // Optimistic update
+    setActivities((prev) =>
+      prev.map((a) => {
+        if (a.id !== activityId) return a;
+        const newCount = Math.max(0, a.count + delta);
+        const completionPercent =
+          a.goalCount > 0 ? Math.min(100, Math.round((newCount / a.goalCount) * 100)) : 0;
+        return { ...a, count: newCount, completionPercent };
+      }),
+    );
+
+    debouncedUpdateActivityCount(
+      activityId,
+      delta,
+      () => {
+        // Refresh from server to stay in sync
+        refresh();
+      },
+      () => {
+        // Revert on error by refreshing
+        refresh();
+      },
+    );
   }
 
   return (
@@ -120,7 +159,7 @@ export default function ActivitiesScreen() {
                   active ? 'opacity-100' : 'opacity-75',
                 ].join(' ')}
               >
-                {p}
+                {capitalize(p)}
               </ThemedText>
             </Pressable>
           );
@@ -144,7 +183,7 @@ export default function ActivitiesScreen() {
               <ThemedText className="mb-2 opacity-70 text-neutral-700 dark:text-neutral-300">
                 Period:{' '}
                 <ThemedText className="font-semibold text-neutral-900 dark:text-white">
-                  {period}
+                  {capitalize(period)}
                 </ThemedText>
               </ThemedText>
 
@@ -166,6 +205,16 @@ export default function ActivitiesScreen() {
                 multiline
                 textAlignVertical="top"
                 className="mt-2 min-h-[90px] rounded-[12px] border border-black/10 bg-black/5 px-3 py-2.5 text-[15px] text-neutral-900 dark:border-white/10 dark:bg-white/10 dark:text-white"
+              />
+
+              <TextInput
+                value={newGoalCount}
+                onChangeText={setNewGoalCount}
+                placeholder="Goal count"
+                placeholderTextColor="#8E8E93"
+                editable={!saving}
+                keyboardType="number-pad"
+                className="mt-2 rounded-[12px] border border-black/10 bg-black/5 px-3 py-2.5 text-[15px] text-neutral-900 dark:border-white/10 dark:bg-white/10 dark:text-white"
               />
 
               {createError ? (
@@ -213,18 +262,53 @@ export default function ActivitiesScreen() {
             isOpen={openId === item.id}
             onToggle={() => toggleActivity(item.id)}
           >
-            <ThemedText className="opacity-85 leading-5 text-neutral-700 dark:text-neutral-300">
-              {item.description}
-            </ThemedText>
+            {item.description ? (
+              <ThemedText className="opacity-85 leading-5 text-neutral-700 dark:text-neutral-300">
+                {item.description}
+              </ThemedText>
+            ) : null}
 
-            <View className="mt-2.5 flex-row items-center justify-between">
-              <ThemedText className="text-[13px] opacity-60 text-neutral-700 dark:text-neutral-300">
-                Complete
+            <View className="mt-2.5 flex-row items-center justify-center gap-4">
+              <Pressable
+                onPress={() => handleDelta(item.id, -1)}
+                disabled={item.count <= 0}
+                accessibilityRole="button"
+                accessibilityLabel="Decrement count"
+                className={[
+                  'h-9 w-9 items-center justify-center rounded-full',
+                  'border border-black/10 bg-black/5 dark:border-white/10 dark:bg-white/10',
+                  item.count <= 0 ? 'opacity-30' : 'opacity-100',
+                ].join(' ')}
+              >
+                <ThemedText className="text-[18px] font-bold text-neutral-900 dark:text-white">
+                  -
+                </ThemedText>
+              </Pressable>
+
+              <ThemedText className="text-[16px] font-semibold text-neutral-900 dark:text-white">
+                {item.count} / {item.goalCount}
               </ThemedText>
-              <ThemedText className="text-[13px] opacity-90 text-neutral-900 dark:text-white">
-                {item.completionPercent}%
-              </ThemedText>
+
+              <Pressable
+                onPress={() => handleDelta(item.id, 1)}
+                disabled={item.count >= item.goalCount}
+                accessibilityRole="button"
+                accessibilityLabel="Increment count"
+                className={[
+                  'h-9 w-9 items-center justify-center rounded-full',
+                  'border border-black/10 bg-black/5 dark:border-white/10 dark:bg-white/10',
+                  item.count >= item.goalCount ? 'opacity-30' : 'opacity-100',
+                ].join(' ')}
+              >
+                <ThemedText className="text-[18px] font-bold text-neutral-900 dark:text-white">
+                  +
+                </ThemedText>
+              </Pressable>
             </View>
+
+            <ThemedText className="mt-1 text-center text-[13px] opacity-60 text-neutral-700 dark:text-neutral-300">
+              {item.completionPercent}%
+            </ThemedText>
           </Collapsible>
         )}
       />

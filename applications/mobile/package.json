@@ -63,6 +63,7 @@
     "eslint-config-expo": "~10.0.0",
     "jest-expo": "^54.0.17",
     "postcss": "^8.5.6",
+    "react-test-renderer": "19.1.4",
     "typescript": "~5.9.2"
   },
   "private": true
