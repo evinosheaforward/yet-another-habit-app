@@ -38,14 +38,23 @@ async function apiFetch<T>(
 ): Promise<T> {
   const url = buildUrl(path, options?.query);
 
-  const resp = await fetch(url, {
-    method,
-    headers: {
-      Authorization: `Bearer ${options?.token ?? ''}`,
-      ...(options?.body ? { 'Content-Type': 'application/json' } : {}),
-    },
-    body: options?.body ? JSON.stringify(options.body) : undefined,
-  });
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 10_000);
+
+  let resp: Response;
+  try {
+    resp = await fetch(url, {
+      method,
+      headers: {
+        Authorization: `Bearer ${options?.token ?? ''}`,
+        ...(options?.body ? { 'Content-Type': 'application/json' } : {}),
+      },
+      body: options?.body ? JSON.stringify(options.body) : undefined,
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timer);
+  }
 
   if (!resp.ok) {
     // Prefer backend-provided message; fall back to status text

@@ -28,7 +28,7 @@ export default function ActivitiesScreen() {
   const [createOpen, setCreateOpen] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const [newDescription, setNewDescription] = useState('');
-  const [newGoalCount, setNewGoalCount] = useState('1');
+  const [newGoalCount, setNewGoalCount] = useState('');
   const [saving, setSaving] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
 
@@ -46,9 +46,14 @@ export default function ActivitiesScreen() {
       return;
     }
 
-    const goalCount = Math.floor(Number(newGoalCount));
-    if (!Number.isFinite(goalCount) || goalCount < 1) {
-      setCreateError('Goal count must be a positive number.');
+    const rawGoal = newGoalCount.trim();
+    if (rawGoal === '' || !/^\d+$/.test(rawGoal)) {
+      setCreateError('Goal count must be a positive whole number.');
+      return;
+    }
+    const goalCount = Number(rawGoal);
+    if (goalCount < 1) {
+      setCreateError('Goal count must be at least 1.');
       return;
     }
 
@@ -64,7 +69,7 @@ export default function ActivitiesScreen() {
       setCreateOpen(false);
       setNewTitle('');
       setNewDescription('');
-      setNewGoalCount('1');
+      setNewGoalCount('');
       await refresh();
     } catch (e: any) {
       setCreateError(e?.message ?? 'Failed to create activity.');
@@ -210,7 +215,7 @@ export default function ActivitiesScreen() {
               <TextInput
                 value={newGoalCount}
                 onChangeText={setNewGoalCount}
-                placeholder="Goal count"
+                placeholder="Goal count (times per period)"
                 placeholderTextColor="#8E8E93"
                 editable={!saving}
                 keyboardType="number-pad"
@@ -239,7 +244,7 @@ export default function ActivitiesScreen() {
                   disabled={saving}
                   className="rounded-[12px] px-3.5 py-2.5 bg-black/90 dark:bg-white/90 opacity-100"
                 >
-                  <ThemedText className="text-neutral-50 dark:text-white">
+                  <ThemedText lightColor="#ffffff" darkColor="#171717">
                     {saving ? 'Creating...' : 'Create'}
                   </ThemedText>
                 </Pressable>

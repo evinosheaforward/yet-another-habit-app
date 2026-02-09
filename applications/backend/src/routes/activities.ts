@@ -1,66 +1,65 @@
-import type { Request, Response } from "express";
-import { Router } from "express";
-import type { ActivityPeriod } from "@yet-another-habit-app/shared-types";
+import type { Request, Response } from 'express';
+import { Router } from 'express';
+import type { ActivityPeriod } from '@yet-another-habit-app/shared-types';
 import {
   createActivityForUser,
   getActivitiesForUser,
   updateActivityCount,
-} from "../db/activitiesModel";
-import { db } from "../db/knex.js";
+} from '../db/activitiesModel';
+import { db } from '../db/knex.js';
 
 const router = Router();
 
 function isActivityPeriod(v: unknown): v is ActivityPeriod {
-  return v === "daily" || v === "weekly" || v === "monthly";
+  return v === 'daily' || v === 'weekly' || v === 'monthly';
 }
 
-router.get("/activities", async (req: Request, res: Response) => {
+router.get('/activities', async (req: Request, res: Response) => {
   const { userId, period } = req.query;
 
-  if (typeof userId !== "string" || userId.length === 0) {
-    return res.status(400).json({ error: "userId is required" });
+  if (typeof userId !== 'string' || userId.length === 0) {
+    return res.status(400).json({ error: 'userId is required' });
   }
   if (!isActivityPeriod(period)) {
-    return res.status(400).json({ error: "period must be daily|weekly|monthly" });
+    return res.status(400).json({ error: 'period must be daily|weekly|monthly' });
   }
 
   // Security guard: only allow the authenticated user to query their own activities
   const authedUid = req.auth?.uid;
-  if (!authedUid) return res.status(401).json({ error: "Not authenticated" });
-  if (userId !== authedUid) return res.status(403).json({ error: "Cannot query another user" });
+  if (!authedUid) return res.status(401).json({ error: 'Not authenticated' });
+  if (userId !== authedUid) return res.status(403).json({ error: 'Cannot query another user' });
 
   const activities = await getActivitiesForUser(userId, period);
   return res.json({ activities });
 });
 
-router.post("/activities", async (req: Request, res: Response) => {
+router.post('/activities', async (req: Request, res: Response) => {
   // Auth required
   const authedUid = req.auth?.uid;
-  if (!authedUid) return res.status(401).json({ error: "Not authenticated" });
+  if (!authedUid) return res.status(401).json({ error: 'Not authenticated' });
 
   const { title, description, period, goalCount } = req.body ?? {};
 
-  if (typeof title !== "string" || title.trim().length === 0) {
-    return res.status(400).json({ error: "title is required" });
+  if (typeof title !== 'string' || title.trim().length === 0) {
+    return res.status(400).json({ error: 'title is required' });
   }
 
-  if (description != null && typeof description !== "string") {
-    return res.status(400).json({ error: "description must be a string" });
+  if (description != null && typeof description !== 'string') {
+    return res.status(400).json({ error: 'description must be a string' });
   }
 
   if (!isActivityPeriod(period)) {
-    return res.status(400).json({ error: "period must be daily|weekly|monthly" });
+    return res.status(400).json({ error: 'period must be daily|weekly|monthly' });
   }
 
-  const parsedGoalCount =
-    goalCount != null ? Math.floor(Number(goalCount)) : 1;
+  const parsedGoalCount = goalCount != null ? Math.floor(Number(goalCount)) : 1;
   if (!Number.isFinite(parsedGoalCount) || parsedGoalCount < 1) {
-    return res.status(400).json({ error: "goalCount must be a positive integer" });
+    return res.status(400).json({ error: 'goalCount must be a positive integer' });
   }
 
   const activity = await createActivityForUser(authedUid, {
     title: title.trim(),
-    description: description?.trim() || null,
+    description: description?.trim() || '',
     period,
     goalCount: parsedGoalCount,
   });
@@ -68,25 +67,22 @@ router.post("/activities", async (req: Request, res: Response) => {
   return res.status(201).json({ activity });
 });
 
-
-router.post("/activities/:activityId/history", async (req: Request, res: Response) => {
+router.post('/activities/:activityId/history', async (req: Request, res: Response) => {
   const authedUid = req.auth?.uid;
-  if (!authedUid) return res.status(401).json({ error: "Not authenticated" });
+  if (!authedUid) return res.status(401).json({ error: 'Not authenticated' });
 
   const { activityId } = req.params;
   const { delta } = req.body ?? {};
 
   if (delta !== 1 && delta !== -1) {
-    return res.status(400).json({ error: "delta must be 1 or -1" });
+    return res.status(400).json({ error: 'delta must be 1 or -1' });
   }
 
   // Look up the activity to get its period
-  const activity = await db("activities")
-    .where({ id: activityId, user_id: authedUid })
-    .first();
+  const activity = await db('activities').where({ id: activityId, user_id: authedUid }).first();
 
   if (!activity) {
-    return res.status(404).json({ error: "Activity not found" });
+    return res.status(404).json({ error: 'Activity not found' });
   }
 
   const count = await updateActivityCount(activityId, authedUid, activity.period, delta);
