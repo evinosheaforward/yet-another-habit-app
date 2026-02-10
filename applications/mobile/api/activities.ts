@@ -115,6 +115,21 @@ export async function createActivity(input: {
   return json.activity;
 }
 
+export async function updateActivity(
+  activityId: string,
+  input: { title?: string; description?: string; goalCount?: number },
+): Promise<Activity> {
+  const { token } = await getAuthedContext();
+
+  const json = await apiFetch<{ activity: Activity }>('PUT', `/activities/${activityId}`, {
+    token,
+    body: input,
+  });
+
+  invalidateActivitiesCache();
+  return json.activity;
+}
+
 // --- Debounced activity count updates ---
 
 type PendingDelta = {

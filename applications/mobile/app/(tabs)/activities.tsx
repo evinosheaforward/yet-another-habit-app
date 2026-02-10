@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   FlatList,
   KeyboardAvoidingView,
@@ -8,6 +8,8 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { useRouter } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 import { createActivity, getActivities, debouncedUpdateActivityCount } from '@/api/activities';
 
 import { Collapsible } from '@/components/ui/collapsible';
@@ -21,6 +23,7 @@ function capitalize(s: string) {
 }
 
 export default function ActivitiesScreen() {
+  const router = useRouter();
   const [period, setPeriod] = useState<ActivityPeriod>(ActivityPeriod.Daily);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [openId, setOpenId] = useState<string | null>(null);
@@ -32,10 +35,10 @@ export default function ActivitiesScreen() {
   const [saving, setSaving] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
 
-  async function refresh() {
+  const refresh = useCallback(async () => {
     const data = await getActivities(period, { force: true });
     setActivities(data);
-  }
+  }, [period]);
 
   async function onCreate() {
     setCreateError(null);
@@ -93,6 +96,13 @@ export default function ActivitiesScreen() {
       cancelled = true;
     };
   }, [period]);
+
+  // Re-fetch when screen regains focus (e.g. returning from detail page)
+  useFocusEffect(
+    useCallback(() => {
+      refresh();
+    }, [refresh]),
+  );
 
   function toggleActivity(id: string) {
     setOpenId((cur) => (cur === id ? null : id));
@@ -314,6 +324,29 @@ export default function ActivitiesScreen() {
             <ThemedText className="mt-1 text-center text-[13px] opacity-60 text-neutral-700 dark:text-neutral-300">
               {item.completionPercent}%
             </ThemedText>
+
+            <Pressable
+              onPress={() =>
+                router.push({
+                  pathname: '/activity/[id]',
+                  params: {
+                    id: item.id,
+                    title: item.title,
+                    description: item.description,
+                    goalCount: String(item.goalCount),
+                    count: String(item.count),
+                    completionPercent: String(item.completionPercent),
+                    period: item.period,
+                  },
+                })
+              }
+              accessibilityRole="button"
+              className="mt-3 items-center rounded-[10px] border border-black/10 bg-black/5 px-3 py-2 dark:border-white/10 dark:bg-white/10"
+            >
+              <ThemedText className="text-[13px] font-semibold text-neutral-900 dark:text-white">
+                Details
+              </ThemedText>
+            </Pressable>
           </Collapsible>
         )}
       />

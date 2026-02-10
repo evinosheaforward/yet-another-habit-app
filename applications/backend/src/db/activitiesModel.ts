@@ -159,3 +159,61 @@ export async function updateActivityCount(
 
   return row ? Number(row.count) : 0;
 }
+
+export async function updateActivityForUser(
+  activityId: string,
+  userId: string,
+  updates: { title?: string; description?: string; goalCount?: number }
+): Promise<Activity | null> {
+  const existing = await db("activities")
+    .where({ id: activityId, user_id: userId })
+    .first();
+
+  if (!existing) return null;
+
+  const patch: Record<string, unknown> = {};
+  if (updates.title !== undefined) patch.title = updates.title;
+  if (updates.description !== undefined) patch.description = updates.description;
+  if (updates.goalCount !== undefined) patch.goal_count = updates.goalCount;
+
+  if (Object.keys(patch).length > 0) {
+    await db("activities").where({ id: activityId, user_id: userId }).update(patch);
+  }
+
+  const startDate = computePeriodStart(existing.period);
+  const row = await db("activities")
+    .leftJoin("activities_history", function () {
+      this.on("activities.id", "=", "activities_history.activity_id").andOn(
+        "activities_history.start_date",
+        "=",
+        db.raw("?", [startDate])
+      );
+    })
+    .select([
+      "activities.id",
+      "activities.title",
+      "activities.description",
+      "activities.goal_count",
+      "activities.period",
+      db.raw("COALESCE(activities_history.count, 0) as count"),
+    ])
+    .where({ "activities.id": activityId })
+    .first();
+
+  if (!row) return null;
+
+  const goalCount = Number(row.goal_count);
+  const count = Number(row.count);
+  const completionPercent =
+    goalCount > 0 ? Math.min(100, Math.round((count / goalCount) * 100)) : 0;
+
+  return {
+    id: row.id,
+    title: row.title,
+    description: row.description,
+    goalCount,
+    count,
+    completionPercent,
+    period: row.period,
+  };
+}

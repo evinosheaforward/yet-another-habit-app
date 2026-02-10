@@ -34,7 +34,9 @@
       "mcp__project-tools__test_unit",
       "Bash(npm ls:*)",
       "mcp__project-tools__build_all",
-      "mcp__project-tools__migrate"
+      "mcp__project-tools__migrate",
+      "mcp__project-tools__typecheck",
+      "mcp__project-tools__lint_workspace"
     ]
   },
   "enableAllProjectMcpServers": true,

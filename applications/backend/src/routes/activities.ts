@@ -5,6 +5,7 @@ import {
   createActivityForUser,
   getActivitiesForUser,
   updateActivityCount,
+  updateActivityForUser,
 } from '../db/activitiesModel';
 import { db } from '../db/knex.js';
 
@@ -65,6 +66,46 @@ router.post('/activities', async (req: Request, res: Response) => {
   });
 
   return res.status(201).json({ activity });
+});
+
+router.put('/activities/:activityId', async (req: Request, res: Response) => {
+  const authedUid = req.auth?.uid;
+  if (!authedUid) return res.status(401).json({ error: 'Not authenticated' });
+
+  const { activityId } = req.params;
+  const { title, description, goalCount } = req.body ?? {};
+
+  if (title !== undefined && (typeof title !== 'string' || title.trim().length === 0)) {
+    return res.status(400).json({ error: 'title must be a non-empty string' });
+  }
+  if (description !== undefined && typeof description !== 'string') {
+    return res.status(400).json({ error: 'description must be a string' });
+  }
+  if (goalCount !== undefined) {
+    const parsed = Math.floor(Number(goalCount));
+    if (!Number.isFinite(parsed) || parsed < 1) {
+      return res.status(400).json({ error: 'goalCount must be a positive integer' });
+    }
+  }
+
+  const updates: { title?: string; description?: string; goalCount?: number } = {};
+  if (title !== undefined) updates.title = title.trim();
+  if (description !== undefined) updates.description = description;
+  if (goalCount !== undefined) updates.goalCount = Math.floor(Number(goalCount));
+
+  if (Object.keys(updates).length === 0) {
+    return res.status(400).json({ error: 'At least one field must be provided' });
+  }
+
+  try {
+    const activity = await updateActivityForUser(activityId, authedUid, updates);
+    if (!activity) {
+      return res.status(404).json({ error: 'Activity not found' });
+    }
+    return res.json({ activity });
+  } catch {
+    return res.status(500).json({ error: 'Failed to update activity' });
+  }
 });
 
 router.post('/activities/:activityId/history', async (req: Request, res: Response) => {
