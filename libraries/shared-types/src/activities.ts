@@ -12,6 +12,8 @@ export interface Activity {
   count: number;
   completionPercent: number;
   period: ActivityPeriod;
+  stackedActivityId: string | null;
+  stackedActivityTitle: string | null;
 }
 
 export interface ActivityHistoryEntry {

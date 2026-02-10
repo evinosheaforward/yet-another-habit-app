@@ -50,12 +50,15 @@ export async function getActivitiesForUser(
         db.raw("?", [startDate])
       );
     })
+    .leftJoin("activities as stacked", "activities.stacked_activity_id", "stacked.id")
     .select([
       "activities.id",
       "activities.title",
       "activities.description",
       "activities.goal_count",
       "activities.period",
+      "activities.stacked_activity_id",
+      "stacked.title as stacked_activity_title",
       db.raw("COALESCE(activities_history.count, 0) as count"),
     ])
     .where({ "activities.user_id": userId, "activities.period": period })
@@ -69,6 +72,8 @@ export async function getActivitiesForUser(
       goal_count: number;
       period: ActivityPeriod;
       count: number;
+      stacked_activity_id: string | null;
+      stacked_activity_title: string | null;
     }) => {
       const goalCount = Number(r.goal_count);
       const count = Number(r.count);
@@ -81,6 +86,8 @@ export async function getActivitiesForUser(
         count,
         completionPercent,
         period: r.period,
+        stackedActivityId: r.stacked_activity_id ?? null,
+        stackedActivityTitle: r.stacked_activity_title ?? null,
       };
     }
   );
@@ -93,6 +100,7 @@ export async function createActivityForUser(
     description: string | null;
     period: ActivityPeriod;
     goalCount: number;
+    stackedActivityId?: string | null;
   }
 ): Promise<Activity> {
   const id = randomUUID();
@@ -104,11 +112,21 @@ export async function createActivityForUser(
     description: input.description,
     goal_count: input.goalCount,
     period: input.period,
+    stacked_activity_id: input.stackedActivityId ?? null,
   });
 
   const row = await db("activities")
-    .select(["id", "title", "description", "goal_count", "period"])
-    .where({ id, user_id: userId })
+    .leftJoin("activities as stacked", "activities.stacked_activity_id", "stacked.id")
+    .select([
+      "activities.id",
+      "activities.title",
+      "activities.description",
+      "activities.goal_count",
+      "activities.period",
+      "activities.stacked_activity_id",
+      "stacked.title as stacked_activity_title",
+    ])
+    .where({ "activities.id": id, "activities.user_id": userId })
     .first();
 
   if (!row) {
@@ -123,6 +141,8 @@ export async function createActivityForUser(
     count: 0,
     completionPercent: 0,
     period: row.period,
+    stackedActivityId: row.stacked_activity_id ?? null,
+    stackedActivityTitle: row.stacked_activity_title ?? null,
   };
 }
 
@@ -245,7 +265,7 @@ export async function getActivityHistory(
 export async function updateActivityForUser(
   activityId: string,
   userId: string,
-  updates: { title?: string; description?: string; goalCount?: number }
+  updates: { title?: string; description?: string; goalCount?: number; stackedActivityId?: string | null }
 ): Promise<Activity | null> {
   const existing = await db("activities")
     .where({ id: activityId, user_id: userId })
@@ -257,6 +277,7 @@ export async function updateActivityForUser(
   if (updates.title !== undefined) patch.title = updates.title;
   if (updates.description !== undefined) patch.description = updates.description;
   if (updates.goalCount !== undefined) patch.goal_count = updates.goalCount;
+  if (updates.stackedActivityId !== undefined) patch.stacked_activity_id = updates.stackedActivityId;
 
   if (Object.keys(patch).length > 0) {
     await db("activities").where({ id: activityId, user_id: userId }).update(patch);
@@ -271,12 +292,15 @@ export async function updateActivityForUser(
         db.raw("?", [startDate])
       );
     })
+    .leftJoin("activities as stacked", "activities.stacked_activity_id", "stacked.id")
     .select([
       "activities.id",
       "activities.title",
       "activities.description",
       "activities.goal_count",
       "activities.period",
+      "activities.stacked_activity_id",
+      "stacked.title as stacked_activity_title",
       db.raw("COALESCE(activities_history.count, 0) as count"),
     ])
     .where({ "activities.id": activityId })
@@ -297,5 +321,51 @@ export async function updateActivityForUser(
     count,
     completionPercent,
     period: row.period,
+    stackedActivityId: row.stacked_activity_id ?? null,
+    stackedActivityTitle: row.stacked_activity_title ?? null,
   };
+}
+
+export async function wouldCreateCycle(
+  sourceId: string,
+  targetId: string,
+  userId: string
+): Promise<boolean> {
+  let currentId: string | null = targetId;
+  const visited = new Set<string>();
+
+  while (currentId) {
+    if (currentId === sourceId) return true;
+    if (visited.has(currentId)) return false;
+    visited.add(currentId);
+
+    const row: { stacked_activity_id: string | null } | undefined = await db("activities")
+      .select("stacked_activity_id")
+      .where({ id: currentId, user_id: userId })
+      .first();
+
+    currentId = row?.stacked_activity_id ?? null;
+  }
+
+  return false;
+}
+
+export async function validateStackTarget(
+  targetId: string,
+  userId: string,
+  requiredPeriod: string
+): Promise<{ valid: boolean; error?: string }> {
+  const target = await db("activities")
+    .where({ id: targetId, user_id: userId })
+    .first();
+
+  if (!target) {
+    return { valid: false, error: "Stacked activity not found" };
+  }
+
+  if (target.period.toLowerCase() !== requiredPeriod.toLowerCase()) {
+    return { valid: false, error: "Stacked activity must have the same period" };
+  }
+
+  return { valid: true };
 }

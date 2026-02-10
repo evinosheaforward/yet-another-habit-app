@@ -1,8 +1,5 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import { initializeAuth, getAuth, connectAuthEmulator } from 'firebase/auth';
-// @ts-expect-error — exported from @firebase/auth's react-native condition; tsc resolves the web types instead
-import { getReactNativePersistence } from '@firebase/auth';
-import ReactNativeAsyncStorage from '@react-native-async-storage/async-storage';
+import { initializeAuth, getAuth, connectAuthEmulator, browserLocalPersistence } from 'firebase/auth';
 import { Platform } from 'react-native';
 
 const firebaseConfig = {
@@ -15,11 +12,26 @@ const firebaseConfig = {
 const alreadyInitialized = getApps().length > 0;
 export const app = alreadyInitialized ? getApp() : initializeApp(firebaseConfig);
 
-export const auth = alreadyInitialized
-  ? getAuth(app)
-  : initializeAuth(app, {
-      persistence: getReactNativePersistence(ReactNativeAsyncStorage),
-    });
+function createAuth() {
+  if (alreadyInitialized) return getAuth(app);
+
+  if (Platform.OS === 'web') {
+    return initializeAuth(app, { persistence: browserLocalPersistence });
+  }
+
+  // On native, use React Native persistence with AsyncStorage.
+  // These are imported inline because getReactNativePersistence is only
+  // available under the react-native module condition (not on web).
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { getReactNativePersistence } = require('@firebase/auth');
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const ReactNativeAsyncStorage = require('@react-native-async-storage/async-storage').default;
+  return initializeAuth(app, {
+    persistence: getReactNativePersistence(ReactNativeAsyncStorage),
+  });
+}
+
+export const auth = createAuth();
 
 // Connect emulator eagerly at module scope — must happen before persistence
 // restores a previously saved emulator session, otherwise Firebase tries to

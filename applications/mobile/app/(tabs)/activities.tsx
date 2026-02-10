@@ -12,6 +12,7 @@ import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { createActivity, getActivities, debouncedUpdateActivityCount } from '@/api/activities';
 
+import { ActivityCountControls } from '@/components/activity-count-controls';
 import { Collapsible } from '@/components/ui/collapsible';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -32,6 +33,8 @@ export default function ActivitiesScreen() {
   const [newTitle, setNewTitle] = useState('');
   const [newDescription, setNewDescription] = useState('');
   const [newGoalCount, setNewGoalCount] = useState('');
+  const [newStackedActivityId, setNewStackedActivityId] = useState<string | null>(null);
+  const [showCreateStackPicker, setShowCreateStackPicker] = useState(false);
   const [saving, setSaving] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
 
@@ -67,12 +70,15 @@ export default function ActivitiesScreen() {
         description: newDescription.trim(),
         period,
         goalCount,
+        stackedActivityId: newStackedActivityId,
       });
 
       setCreateOpen(false);
       setNewTitle('');
       setNewDescription('');
       setNewGoalCount('');
+      setNewStackedActivityId(null);
+      setShowCreateStackPicker(false);
       await refresh();
     } catch (e: any) {
       setCreateError(e?.message ?? 'Failed to create activity.');
@@ -124,8 +130,32 @@ export default function ActivitiesScreen() {
       activityId,
       delta,
       () => {
-        // Refresh from server to stay in sync
         refresh();
+
+        // Navigate to stacked activity on increment
+        if (delta > 0) {
+          const source = activities.find((a) => a.id === activityId);
+          if (source?.stackedActivityId) {
+            const stacked = activities.find((a) => a.id === source.stackedActivityId);
+            if (stacked) {
+              router.push({
+                pathname: '/activity/[id]',
+                params: {
+                  id: stacked.id,
+                  title: stacked.title,
+                  description: stacked.description,
+                  goalCount: String(stacked.goalCount),
+                  count: String(stacked.count),
+                  completionPercent: String(stacked.completionPercent),
+                  period: stacked.period,
+                  stackedActivityId: stacked.stackedActivityId ?? '',
+                  stackedActivityTitle: stacked.stackedActivityTitle ?? '',
+                  showStackPrompt: '1',
+                },
+              });
+            }
+          }
+        }
       },
       () => {
         // Revert on error by refreshing
@@ -232,6 +262,64 @@ export default function ActivitiesScreen() {
                 className="mt-2 rounded-[12px] border border-black/10 bg-black/5 px-3 py-2.5 text-[15px] text-neutral-900 dark:border-white/10 dark:bg-white/10 dark:text-white"
               />
 
+              <ThemedText className="mb-1 mt-3 text-[13px] font-semibold uppercase tracking-wide opacity-60 text-neutral-700 dark:text-neutral-300">
+                Stack with (optional)
+              </ThemedText>
+              <Pressable
+                onPress={() => setShowCreateStackPicker((v) => !v)}
+                className="rounded-[12px] border border-black/10 bg-black/5 px-3 py-2.5 dark:border-white/10 dark:bg-white/10"
+              >
+                <ThemedText
+                  className={[
+                    'text-[15px]',
+                    newStackedActivityId
+                      ? 'text-emerald-600 dark:text-emerald-400'
+                      : 'text-neutral-500 dark:text-neutral-400',
+                  ].join(' ')}
+                >
+                  {activities.find((a) => a.id === newStackedActivityId)?.title ?? 'None'}
+                </ThemedText>
+              </Pressable>
+              {showCreateStackPicker ? (
+                <View className="mt-1">
+                  <Pressable
+                    onPress={() => {
+                      setNewStackedActivityId(null);
+                      setShowCreateStackPicker(false);
+                    }}
+                    className={[
+                      'rounded-[10px] border px-3 py-2',
+                      !newStackedActivityId
+                        ? 'border-emerald-500 bg-emerald-500/10'
+                        : 'border-black/10 bg-black/5 dark:border-white/10 dark:bg-white/10',
+                    ].join(' ')}
+                  >
+                    <ThemedText className="text-[14px] text-neutral-900 dark:text-white">
+                      None
+                    </ThemedText>
+                  </Pressable>
+                  {activities.map((a) => (
+                    <Pressable
+                      key={a.id}
+                      onPress={() => {
+                        setNewStackedActivityId(a.id);
+                        setShowCreateStackPicker(false);
+                      }}
+                      className={[
+                        'mt-1 rounded-[10px] border px-3 py-2',
+                        newStackedActivityId === a.id
+                          ? 'border-emerald-500 bg-emerald-500/10'
+                          : 'border-black/10 bg-black/5 dark:border-white/10 dark:bg-white/10',
+                      ].join(' ')}
+                    >
+                      <ThemedText className="text-[14px] text-neutral-900 dark:text-white">
+                        {a.title}
+                      </ThemedText>
+                    </Pressable>
+                  ))}
+                </View>
+              ) : null}
+
               {createError ? (
                 <ThemedText className="mt-2 text-[13px] text-red-500">{createError}</ThemedText>
               ) : null}
@@ -283,47 +371,21 @@ export default function ActivitiesScreen() {
               </ThemedText>
             ) : null}
 
-            <View className="mt-2.5 flex-row items-center justify-center gap-4">
-              <Pressable
-                onPress={() => handleDelta(item.id, -1)}
-                disabled={item.count <= 0}
-                accessibilityRole="button"
-                accessibilityLabel="Decrement count"
-                className={[
-                  'h-9 w-9 items-center justify-center rounded-full',
-                  'border border-black/10 bg-black/5 dark:border-white/10 dark:bg-white/10',
-                  item.count <= 0 ? 'opacity-30' : 'opacity-100',
-                ].join(' ')}
-              >
-                <ThemedText className="text-[18px] font-bold text-neutral-900 dark:text-white">
-                  -
-                </ThemedText>
-              </Pressable>
-
-              <ThemedText className="text-[16px] font-semibold text-neutral-900 dark:text-white">
-                {item.count} / {item.goalCount}
+            {item.stackedActivityTitle ? (
+              <ThemedText className="mt-1.5 text-[13px] font-semibold text-emerald-600 dark:text-emerald-400">
+                Next up: {item.stackedActivityTitle}
               </ThemedText>
+            ) : null}
 
-              <Pressable
-                onPress={() => handleDelta(item.id, 1)}
-                disabled={item.count >= item.goalCount}
-                accessibilityRole="button"
-                accessibilityLabel="Increment count"
-                className={[
-                  'h-9 w-9 items-center justify-center rounded-full',
-                  'border border-black/10 bg-black/5 dark:border-white/10 dark:bg-white/10',
-                  item.count >= item.goalCount ? 'opacity-30' : 'opacity-100',
-                ].join(' ')}
-              >
-                <ThemedText className="text-[18px] font-bold text-neutral-900 dark:text-white">
-                  +
-                </ThemedText>
-              </Pressable>
+            <View className="mt-2.5">
+              <ActivityCountControls
+                count={item.count}
+                goalCount={item.goalCount}
+                completionPercent={item.completionPercent}
+                onIncrement={() => handleDelta(item.id, 1)}
+                onDecrement={() => handleDelta(item.id, -1)}
+              />
             </View>
-
-            <ThemedText className="mt-1 text-center text-[13px] opacity-60 text-neutral-700 dark:text-neutral-300">
-              {item.completionPercent}%
-            </ThemedText>
 
             <Pressable
               onPress={() =>
@@ -337,6 +399,8 @@ export default function ActivitiesScreen() {
                     count: String(item.count),
                     completionPercent: String(item.completionPercent),
                     period: item.period,
+                    stackedActivityId: item.stackedActivityId ?? '',
+                    stackedActivityTitle: item.stackedActivityTitle ?? '',
                   },
                 })
               }

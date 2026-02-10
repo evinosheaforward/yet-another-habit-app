@@ -7,19 +7,22 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { useLocalSearchParams } from 'expo-router';
-import type { ActivityHistoryEntry } from '@yet-another-habit-app/shared-types';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import type { Activity, ActivityHistoryEntry, ActivityPeriod } from '@yet-another-habit-app/shared-types';
 
 import {
+  getActivities,
   updateActivity,
   debouncedUpdateActivityCount,
   getActivityHistory,
 } from '@/api/activities';
+import { ActivityCountControls } from '@/components/activity-count-controls';
 import { ActivityHistoryChart } from '@/components/activity-history-chart';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 
 export default function ActivityDetailScreen() {
+  const router = useRouter();
   const params = useLocalSearchParams<{
     id: string;
     title: string;
@@ -28,6 +31,9 @@ export default function ActivityDetailScreen() {
     count: string;
     completionPercent: string;
     period: string;
+    stackedActivityId: string;
+    stackedActivityTitle: string;
+    showStackPrompt: string;
   }>();
 
   const activityId = params.id;
@@ -49,6 +55,17 @@ export default function ActivityDetailScreen() {
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
 
+  // Stacking state
+  const [stackedActivityId, setStackedActivityId] = useState<string | null>(
+    params.stackedActivityId || null,
+  );
+  const [stackedActivityTitle, setStackedActivityTitle] = useState<string | null>(
+    params.stackedActivityTitle || null,
+  );
+  const [samePeriodActivities, setSamePeriodActivities] = useState<Activity[]>([]);
+  const [showStackPicker, setShowStackPicker] = useState(false);
+  const [promptDismissed, setPromptDismissed] = useState(false);
+
   useEffect(() => {
     let cancelled = false;
     setHistoryLoading(true);
@@ -65,6 +82,22 @@ export default function ActivityDetailScreen() {
     };
   }, [activityId]);
 
+  // Fetch same-period activities for the stack picker
+  useEffect(() => {
+    if (!params.period) return;
+    let cancelled = false;
+    getActivities(params.period as ActivityPeriod)
+      .then((data) => {
+        if (!cancelled) {
+          setSamePeriodActivities(data.filter((a) => a.id !== activityId));
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [activityId, params.period]);
+
   function handleDelta(delta: number) {
     const newCount = Math.max(0, count + delta);
     setCount(newCount);
@@ -72,7 +105,31 @@ export default function ActivityDetailScreen() {
     debouncedUpdateActivityCount(
       activityId,
       delta,
-      (serverCount) => setCount(serverCount),
+      (serverCount) => {
+        setCount(serverCount);
+
+        // Navigate to stacked activity on increment
+        if (delta > 0 && stackedActivityId) {
+          const stacked = samePeriodActivities.find((a) => a.id === stackedActivityId);
+          if (stacked) {
+            router.replace({
+              pathname: '/activity/[id]',
+              params: {
+                id: stacked.id,
+                title: stacked.title,
+                description: stacked.description,
+                goalCount: String(stacked.goalCount),
+                count: String(stacked.count),
+                completionPercent: String(stacked.completionPercent),
+                period: stacked.period,
+                stackedActivityId: stacked.stackedActivityId ?? '',
+                stackedActivityTitle: stacked.stackedActivityTitle ?? '',
+                showStackPrompt: '1',
+              },
+            });
+          }
+        }
+      },
       () => {},
     );
   }
@@ -98,10 +155,18 @@ export default function ActivityDetailScreen() {
       return;
     }
 
-    const updates: { title?: string; description?: string; goalCount?: number } = {};
+    const updates: {
+      title?: string;
+      description?: string;
+      goalCount?: number;
+      stackedActivityId?: string | null;
+    } = {};
     if (trimmedTitle !== params.title) updates.title = trimmedTitle;
     if (description !== (params.description ?? '')) updates.description = description;
     if (parsedGoal !== initialGoalCount) updates.goalCount = parsedGoal;
+
+    const initialStackedId = params.stackedActivityId || null;
+    if (stackedActivityId !== initialStackedId) updates.stackedActivityId = stackedActivityId;
 
     if (Object.keys(updates).length === 0) {
       setSaved(true);
@@ -129,6 +194,34 @@ export default function ActivityDetailScreen() {
           contentContainerClassName="p-4 pb-10"
           keyboardShouldPersistTaps="handled"
         >
+          {/* Stack prompt banner */}
+          {params.showStackPrompt === '1' && !promptDismissed ? (
+            <View className="mb-4 rounded-[12px] border border-emerald-500/30 bg-emerald-500/10 p-3">
+              <ThemedText className="mb-2 text-center text-[15px] font-semibold text-emerald-700 dark:text-emerald-300">
+                Did you complete {params.title}?
+              </ThemedText>
+              <View className="flex-row justify-center gap-3">
+                <Pressable
+                  onPress={() => {
+                    handleDelta(1);
+                    setPromptDismissed(true);
+                  }}
+                  className="rounded-[10px] bg-emerald-600 px-4 py-2 dark:bg-emerald-500"
+                >
+                  <ThemedText className="font-semibold text-white">Yes</ThemedText>
+                </Pressable>
+                <Pressable
+                  onPress={() => setPromptDismissed(true)}
+                  className="rounded-[10px] bg-black/10 px-4 py-2 dark:bg-white/10"
+                >
+                  <ThemedText className="font-semibold text-neutral-900 dark:text-white">
+                    No
+                  </ThemedText>
+                </Pressable>
+              </View>
+            </View>
+          ) : null}
+
           {/* Period badge */}
           <View className="mb-4 flex-row">
             <View className="rounded-full bg-black/10 px-3 py-1 dark:bg-white/10">
@@ -185,6 +278,70 @@ export default function ActivityDetailScreen() {
             className="rounded-[12px] border border-black/10 bg-black/5 px-3 py-2.5 text-[15px] text-neutral-900 dark:border-white/10 dark:bg-white/10 dark:text-white"
           />
 
+          {/* Stacked habit picker */}
+          <ThemedText className="mb-1 mt-4 text-[13px] font-semibold uppercase tracking-wide opacity-60 text-neutral-700 dark:text-neutral-300">
+            Stack With
+          </ThemedText>
+          <Pressable
+            onPress={() => setShowStackPicker((v) => !v)}
+            className="rounded-[12px] border border-black/10 bg-black/5 px-3 py-2.5 dark:border-white/10 dark:bg-white/10"
+          >
+            <ThemedText
+              className={[
+                'text-[15px]',
+                stackedActivityTitle
+                  ? 'text-emerald-600 dark:text-emerald-400'
+                  : 'text-neutral-500 dark:text-neutral-400',
+              ].join(' ')}
+            >
+              {stackedActivityTitle ?? 'None'}
+            </ThemedText>
+          </Pressable>
+
+          {showStackPicker ? (
+            <View className="mt-1">
+              <Pressable
+                onPress={() => {
+                  setStackedActivityId(null);
+                  setStackedActivityTitle(null);
+                  setShowStackPicker(false);
+                  setSaved(false);
+                }}
+                className={[
+                  'rounded-[10px] border px-3 py-2',
+                  !stackedActivityId
+                    ? 'border-emerald-500 bg-emerald-500/10'
+                    : 'border-black/10 bg-black/5 dark:border-white/10 dark:bg-white/10',
+                ].join(' ')}
+              >
+                <ThemedText className="text-[14px] text-neutral-900 dark:text-white">
+                  None
+                </ThemedText>
+              </Pressable>
+              {samePeriodActivities.map((a) => (
+                <Pressable
+                  key={a.id}
+                  onPress={() => {
+                    setStackedActivityId(a.id);
+                    setStackedActivityTitle(a.title);
+                    setShowStackPicker(false);
+                    setSaved(false);
+                  }}
+                  className={[
+                    'mt-1 rounded-[10px] border px-3 py-2',
+                    stackedActivityId === a.id
+                      ? 'border-emerald-500 bg-emerald-500/10'
+                      : 'border-black/10 bg-black/5 dark:border-white/10 dark:bg-white/10',
+                  ].join(' ')}
+                >
+                  <ThemedText className="text-[14px] text-neutral-900 dark:text-white">
+                    {a.title}
+                  </ThemedText>
+                </Pressable>
+              ))}
+            </View>
+          ) : null}
+
           {/* History chart */}
           {historyLoading ? (
             <ThemedText className="mt-6 text-center text-[13px] opacity-60">
@@ -203,41 +360,13 @@ export default function ActivityDetailScreen() {
             <ThemedText className="mb-2 text-[13px] font-semibold uppercase tracking-wide opacity-60 text-neutral-700 dark:text-neutral-300">
               Current Progress
             </ThemedText>
-            <View className="flex-row items-center gap-4">
-              <Pressable
-                onPress={() => handleDelta(-1)}
-                disabled={count <= 0}
-                accessibilityRole="button"
-                accessibilityLabel="Decrement count"
-                className={[
-                  'h-9 w-9 items-center justify-center rounded-full',
-                  'border border-black/10 bg-black/5 dark:border-white/10 dark:bg-white/10',
-                  count <= 0 ? 'opacity-30' : 'opacity-100',
-                ].join(' ')}
-              >
-                <ThemedText className="text-[18px] font-bold text-neutral-900 dark:text-white">
-                  -
-                </ThemedText>
-              </Pressable>
-
-              <ThemedText className="text-[16px] font-semibold text-neutral-900 dark:text-white">
-                {count} / {currentGoal || '?'}
-              </ThemedText>
-
-              <Pressable
-                onPress={() => handleDelta(1)}
-                accessibilityRole="button"
-                accessibilityLabel="Increment count"
-                className="h-9 w-9 items-center justify-center rounded-full border border-black/10 bg-black/5 dark:border-white/10 dark:bg-white/10"
-              >
-                <ThemedText className="text-[18px] font-bold text-neutral-900 dark:text-white">
-                  +
-                </ThemedText>
-              </Pressable>
-            </View>
-            <ThemedText className="mt-1 text-[13px] opacity-60 text-neutral-700 dark:text-neutral-300">
-              {completionPercent}%
-            </ThemedText>
+            <ActivityCountControls
+              count={count}
+              goalCount={currentGoal}
+              completionPercent={completionPercent}
+              onIncrement={() => handleDelta(1)}
+              onDecrement={() => handleDelta(-1)}
+            />
           </View>
 
           {/* Error */}

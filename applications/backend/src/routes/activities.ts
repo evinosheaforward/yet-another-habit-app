@@ -7,6 +7,8 @@ import {
   getActivityHistory,
   updateActivityCount,
   updateActivityForUser,
+  validateStackTarget,
+  wouldCreateCycle,
 } from '../db/activitiesModel';
 import { db } from '../db/knex.js';
 
@@ -40,7 +42,7 @@ router.post('/activities', async (req: Request, res: Response) => {
   const authedUid = req.auth?.uid;
   if (!authedUid) return res.status(401).json({ error: 'Not authenticated' });
 
-  const { title, description, period, goalCount } = req.body ?? {};
+  const { title, description, period, goalCount, stackedActivityId } = req.body ?? {};
 
   if (typeof title !== 'string' || title.trim().length === 0) {
     return res.status(400).json({ error: 'title is required' });
@@ -59,11 +61,19 @@ router.post('/activities', async (req: Request, res: Response) => {
     return res.status(400).json({ error: 'goalCount must be a positive integer' });
   }
 
+  if (stackedActivityId != null && typeof stackedActivityId === 'string') {
+    const result = await validateStackTarget(stackedActivityId, authedUid, period);
+    if (!result.valid) {
+      return res.status(400).json({ error: result.error });
+    }
+  }
+
   const activity = await createActivityForUser(authedUid, {
     title: title.trim(),
     description: description?.trim() || '',
     period,
     goalCount: parsedGoalCount,
+    stackedActivityId: stackedActivityId ?? null,
   });
 
   return res.status(201).json({ activity });
@@ -74,7 +84,7 @@ router.put('/activities/:activityId', async (req: Request, res: Response) => {
   if (!authedUid) return res.status(401).json({ error: 'Not authenticated' });
 
   const { activityId } = req.params;
-  const { title, description, goalCount } = req.body ?? {};
+  const { title, description, goalCount, stackedActivityId } = req.body ?? {};
 
   if (title !== undefined && (typeof title !== 'string' || title.trim().length === 0)) {
     return res.status(400).json({ error: 'title must be a non-empty string' });
@@ -89,10 +99,37 @@ router.put('/activities/:activityId', async (req: Request, res: Response) => {
     }
   }
 
-  const updates: { title?: string; description?: string; goalCount?: number } = {};
+  if (stackedActivityId !== undefined && stackedActivityId !== null) {
+    if (stackedActivityId === activityId) {
+      return res.status(400).json({ error: 'Cannot stack an activity with itself' });
+    }
+
+    // Look up the activity to get its period for validation
+    const current = await db('activities').where({ id: activityId, user_id: authedUid }).first();
+    if (!current) {
+      return res.status(404).json({ error: 'Activity not found' });
+    }
+
+    const result = await validateStackTarget(stackedActivityId, authedUid, current.period);
+    if (!result.valid) {
+      return res.status(400).json({ error: result.error });
+    }
+
+    if (await wouldCreateCycle(activityId, stackedActivityId, authedUid)) {
+      return res.status(400).json({ error: 'This would create a circular chain' });
+    }
+  }
+
+  const updates: {
+    title?: string;
+    description?: string;
+    goalCount?: number;
+    stackedActivityId?: string | null;
+  } = {};
   if (title !== undefined) updates.title = title.trim();
   if (description !== undefined) updates.description = description;
   if (goalCount !== undefined) updates.goalCount = Math.floor(Number(goalCount));
+  if (stackedActivityId !== undefined) updates.stackedActivityId = stackedActivityId;
 
   if (Object.keys(updates).length === 0) {
     return res.status(400).json({ error: 'At least one field must be provided' });

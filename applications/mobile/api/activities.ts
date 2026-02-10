@@ -94,6 +94,7 @@ export async function createActivity(input: {
   description?: string;
   period: ActivityPeriod;
   goalCount?: number;
+  stackedActivityId?: string | null;
 }): Promise<Activity> {
   const title = input.title.trim();
   if (!title) throw new Error('Title is required.');
@@ -107,6 +108,7 @@ export async function createActivity(input: {
       description: input.description?.trim() || undefined,
       period: input.period,
       goalCount: input.goalCount ?? 1,
+      stackedActivityId: input.stackedActivityId ?? undefined,
       userId: uid,
     },
   });
@@ -117,7 +119,7 @@ export async function createActivity(input: {
 
 export async function updateActivity(
   activityId: string,
-  input: { title?: string; description?: string; goalCount?: number },
+  input: { title?: string; description?: string; goalCount?: number; stackedActivityId?: string | null },
 ): Promise<Activity> {
   const { token } = await getAuthedContext();
 
