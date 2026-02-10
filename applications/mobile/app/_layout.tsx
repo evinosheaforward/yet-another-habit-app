@@ -6,7 +6,8 @@ import 'react-native-reanimated';
 import { useColorScheme as useNativeWindColorScheme } from 'nativewind';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
-import { connectAuthEmulatorIfEnabled } from '@/auth/firebaseClient';
+// Importing firebaseClient eagerly ensures auth + emulator are initialized at module load
+import '@/auth/firebaseClient';
 
 export const unstable_settings = {
   anchor: '(tabs)',
@@ -15,10 +16,6 @@ export const unstable_settings = {
 export default function RootLayout() {
   const colorScheme = useColorScheme();
   const { setColorScheme } = useNativeWindColorScheme();
-
-  useEffect(() => {
-    connectAuthEmulatorIfEnabled();
-  }, []);
 
   useEffect(() => {
     // Ensures Tailwind `dark:` variants respond to the app theme

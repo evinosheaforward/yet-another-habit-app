@@ -70,7 +70,9 @@ jest.mock('firebase/app', () => ({
 }));
 
 jest.mock('firebase/auth', () => ({
+  initializeAuth: jest.fn(() => mockAuth),
   getAuth: jest.fn(() => mockAuth),
+  getReactNativePersistence: jest.fn(() => ({})),
   connectAuthEmulator: jest.fn(),
   onAuthStateChanged: jest.fn((auth, cb) => {
     // By default fire callback with null (no user) on next tick
@@ -81,6 +83,20 @@ jest.mock('firebase/auth', () => ({
   createUserWithEmailAndPassword: jest.fn(),
   signOut: jest.fn(),
   updateProfile: jest.fn(),
+}));
+
+jest.mock('@firebase/auth', () => ({
+  getReactNativePersistence: jest.fn(() => ({})),
+}));
+
+jest.mock('@react-native-async-storage/async-storage', () => ({
+  __esModule: true,
+  default: {
+    getItem: jest.fn(),
+    setItem: jest.fn(),
+    removeItem: jest.fn(),
+    clear: jest.fn(),
+  },
 }));
 
 // ---------------------------------------------------------------------------
