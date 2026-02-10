@@ -7,12 +7,14 @@ import ParallaxScrollView from '@/components/parallax-scroll-view';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 
-import { getAuth, signOut } from 'firebase/auth';
+import { deleteUser, getAuth, signOut } from 'firebase/auth';
 import { app } from '@/auth/firebaseClient';
+import { deleteAccount } from '@/api/activities';
 
 export default function HomeScreen() {
   const auth = useMemo(() => getAuth(app), []);
   const [isSigningOut, setIsSigningOut] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const email = auth.currentUser?.email ?? '';
   const displayName =
@@ -30,6 +32,37 @@ export default function HomeScreen() {
     } finally {
       setIsSigningOut(false);
     }
+  }
+
+  function handleDeleteAccount() {
+    Alert.alert(
+      'Delete Account?',
+      'This will permanently delete your account and all your data. This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setIsDeleting(true);
+              await deleteAccount();
+              // Belt-and-suspenders: also delete client-side Firebase user
+              try {
+                if (auth.currentUser) await deleteUser(auth.currentUser);
+              } catch {
+                // Backend already deleted — ignore
+              }
+              await signOut(auth);
+              router.replace('/login');
+            } catch (e: any) {
+              Alert.alert('Delete failed', e?.message ?? 'Unknown error');
+              setIsDeleting(false);
+            }
+          },
+        },
+      ],
+    );
   }
 
   return (
@@ -75,6 +108,12 @@ export default function HomeScreen() {
             {email ? `Signed in as ${email}` : 'Signed in'}
           </ThemedText>
 
+          <Link href="/privacy-policy" asChild>
+            <Pressable>
+              <ThemedText className="text-[14px] text-indigo-500">Privacy Policy</ThemedText>
+            </Pressable>
+          </Link>
+
           <View className="my-1.5 h-px bg-black/10 dark:bg-white/10" />
 
           <View className="flex-row items-center justify-between gap-3">
@@ -114,16 +153,35 @@ export default function HomeScreen() {
         <ThemedView className="mt-0.5">
           <Pressable
             onPress={handleLogout}
-            disabled={isSigningOut}
+            disabled={isSigningOut || isDeleting}
             className={[
               'items-center justify-center rounded-[16px] border px-4 py-[13px]',
               'border-black/15 bg-transparent dark:border-white/15',
-              isSigningOut ? 'opacity-55' : 'opacity-100',
+              isSigningOut || isDeleting ? 'opacity-55' : 'opacity-100',
             ].join(' ')}
-            style={({ pressed }) => ({ opacity: pressed && !isSigningOut ? 0.85 : undefined })}
+            style={({ pressed }) => ({
+              opacity: pressed && !isSigningOut && !isDeleting ? 0.85 : undefined,
+            })}
           >
             <ThemedText type="defaultSemiBold" className="text-neutral-900 dark:text-white">
               {isSigningOut ? 'Logging out…' : 'Logout'}
+            </ThemedText>
+          </Pressable>
+        </ThemedView>
+
+        {/* Delete account */}
+        <ThemedView>
+          <Pressable
+            onPress={handleDeleteAccount}
+            disabled={isDeleting || isSigningOut}
+            className={[
+              'items-center justify-center rounded-[16px] border px-4 py-[13px]',
+              'border-red-500/30 bg-red-500/10',
+              isDeleting || isSigningOut ? 'opacity-55' : 'opacity-100',
+            ].join(' ')}
+          >
+            <ThemedText type="defaultSemiBold" className="text-red-600 dark:text-red-400">
+              {isDeleting ? 'Deleting account…' : 'Delete Account'}
             </ThemedText>
           </Pressable>
         </ThemedView>

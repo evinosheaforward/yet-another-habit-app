@@ -55,6 +55,13 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "4ec27263-9ec6-4874-8be5-1557eb28e8dc"
+      }
+    },
+    "owner": "evinosheasoftware"
   }
 }

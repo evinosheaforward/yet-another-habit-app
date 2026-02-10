@@ -3,6 +3,8 @@ import { Router } from 'express';
 import type { ActivityPeriod } from '@yet-another-habit-app/shared-types';
 import {
   createActivityForUser,
+  deleteActivityForUser,
+  deleteAllDataForUser,
   getActivitiesForUser,
   getActivityHistory,
   updateActivityCount,
@@ -10,6 +12,7 @@ import {
   validateStackTarget,
   wouldCreateCycle,
 } from '../db/activitiesModel';
+import { deleteFirebaseUser } from '../auth/firebase';
 import { db } from '../db/knex.js';
 
 const router = Router();
@@ -189,6 +192,33 @@ router.post('/activities/:activityId/history', async (req: Request, res: Respons
 
   const count = await updateActivityCount(activityId, authedUid, activity.period, delta);
   return res.json({ count });
+});
+
+router.delete('/activities/:activityId', async (req: Request, res: Response) => {
+  const authedUid = req.auth?.uid;
+  if (!authedUid) return res.status(401).json({ error: 'Not authenticated' });
+
+  const { activityId } = req.params;
+  const deleted = await deleteActivityForUser(activityId, authedUid);
+
+  if (!deleted) {
+    return res.status(404).json({ error: 'Activity not found' });
+  }
+
+  return res.json({ success: true });
+});
+
+router.delete('/account', async (req: Request, res: Response) => {
+  const authedUid = req.auth?.uid;
+  if (!authedUid) return res.status(401).json({ error: 'Not authenticated' });
+
+  try {
+    await deleteAllDataForUser(authedUid);
+    await deleteFirebaseUser(authedUid);
+    return res.json({ success: true });
+  } catch {
+    return res.status(500).json({ error: 'Failed to delete account' });
+  }
 });
 
 export default router;

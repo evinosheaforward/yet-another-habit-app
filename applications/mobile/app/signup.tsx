@@ -110,6 +110,14 @@ export default function SignupScreen() {
               </TouchableOpacity>
             </Link>
           </ThemedView>
+
+          <ThemedView className="mt-2 items-center">
+            <Link href="/privacy-policy" asChild>
+              <TouchableOpacity activeOpacity={0.7}>
+                <ThemedText className="text-[13px] text-indigo-500">Privacy Policy</ThemedText>
+              </TouchableOpacity>
+            </Link>
+          </ThemedView>
         </ThemedView>
       </ThemedView>
     </ThemedView>

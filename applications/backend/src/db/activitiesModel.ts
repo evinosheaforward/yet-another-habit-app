@@ -350,6 +350,42 @@ export async function wouldCreateCycle(
   return false;
 }
 
+export async function deleteActivityForUser(
+  activityId: string,
+  userId: string,
+): Promise<boolean> {
+  const activity = await db("activities")
+    .where({ id: activityId, user_id: userId })
+    .first();
+
+  if (!activity) return false;
+
+  // Delete history rows (FK has no CASCADE)
+  await db("activities_history").where({ activity_id: activityId }).del();
+
+  // Nullify stacked_activity_id references pointing to this activity
+  await db("activities")
+    .where({ stacked_activity_id: activityId, user_id: userId })
+    .update({ stacked_activity_id: null });
+
+  // Delete the activity itself
+  await db("activities").where({ id: activityId, user_id: userId }).del();
+
+  return true;
+}
+
+export async function deleteAllDataForUser(userId: string): Promise<void> {
+  const activityIds = await db("activities")
+    .where({ user_id: userId })
+    .pluck("id");
+
+  if (activityIds.length > 0) {
+    await db("activities_history").whereIn("activity_id", activityIds).del();
+  }
+
+  await db("activities").where({ user_id: userId }).del();
+}
+
 export async function validateStackTarget(
   targetId: string,
   userId: string,

@@ -27,3 +27,7 @@ export function initFirebaseAdmin() {
 export function verifyIdToken(token: string) {
   return admin.auth().verifyIdToken(token);
 }
+
+export function deleteFirebaseUser(uid: string) {
+  return admin.auth().deleteUser(uid);
+}

@@ -148,6 +148,20 @@ export async function getActivityHistory(
   );
 }
 
+export async function deleteActivity(activityId: string): Promise<void> {
+  const { token } = await getAuthedContext();
+
+  await apiFetch<{ success: boolean }>('DELETE', `/activities/${activityId}`, { token });
+  invalidateActivitiesCache();
+}
+
+export async function deleteAccount(): Promise<void> {
+  const { token } = await getAuthedContext();
+
+  await apiFetch<{ success: boolean }>('DELETE', '/account', { token });
+  invalidateActivitiesCache();
+}
+
 // --- Debounced activity count updates ---
 
 type PendingDelta = {

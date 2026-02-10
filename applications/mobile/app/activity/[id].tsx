@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import {
+  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -11,6 +12,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import type { Activity, ActivityHistoryEntry, ActivityPeriod } from '@yet-another-habit-app/shared-types';
 
 import {
+  deleteActivity,
   getActivities,
   updateActivity,
   debouncedUpdateActivityCount,
@@ -52,6 +54,7 @@ export default function ActivityDetailScreen() {
   const [historyLoading, setHistoryLoading] = useState(true);
 
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
 
@@ -182,6 +185,26 @@ export default function ActivityDetailScreen() {
     } finally {
       setSaving(false);
     }
+  }
+
+  function handleDelete() {
+    Alert.alert('Delete Activity?', 'This will permanently delete this activity and all its history.', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Delete',
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            setDeleting(true);
+            await deleteActivity(activityId);
+            router.back();
+          } catch (e: any) {
+            setError(e?.message ?? 'Failed to delete activity.');
+            setDeleting(false);
+          }
+        },
+      },
+    ]);
   }
 
   return (
@@ -377,11 +400,25 @@ export default function ActivityDetailScreen() {
           {/* Save button */}
           <Pressable
             onPress={handleSave}
-            disabled={saving}
+            disabled={saving || deleting}
             className="mt-6 items-center rounded-[12px] bg-black/90 px-4 py-3 dark:bg-white/90"
           >
             <ThemedText lightColor="#ffffff" darkColor="#171717" className="font-semibold">
               {saving ? 'Saving...' : saved ? 'Saved!' : 'Save Changes'}
+            </ThemedText>
+          </Pressable>
+
+          {/* Delete button */}
+          <Pressable
+            onPress={handleDelete}
+            disabled={deleting || saving}
+            className={[
+              'mt-3 items-center rounded-[12px] border border-red-500/30 bg-red-500/10 px-4 py-3',
+              deleting || saving ? 'opacity-55' : 'opacity-100',
+            ].join(' ')}
+          >
+            <ThemedText className="font-semibold text-red-600 dark:text-red-400">
+              {deleting ? 'Deleting...' : 'Delete Activity'}
             </ThemedText>
           </Pressable>
         </ScrollView>
