@@ -1,4 +1,4 @@
-import type { Activity, ActivityPeriod } from "@yet-another-habit-app/shared-types";
+import type { Activity, ActivityHistoryEntry, ActivityPeriod } from "@yet-another-habit-app/shared-types";
 import { db } from "./knex.js";
 import { randomUUID } from "crypto";
 
@@ -158,6 +158,88 @@ export async function updateActivityCount(
     .first();
 
   return row ? Number(row.count) : 0;
+}
+
+const DEFAULT_LIMITS: Record<string, number> = {
+  daily: 7,
+  weekly: 8,
+  monthly: 6,
+};
+
+export function generatePeriodStarts(
+  period: string,
+  count: number,
+  now: Date = new Date()
+): string[] {
+  const normalized = period.toLowerCase();
+  const dates: string[] = [];
+
+  for (let i = count - 1; i >= 0; i--) {
+    const y = now.getUTCFullYear();
+    const m = now.getUTCMonth();
+    const d = now.getUTCDate();
+
+    if (normalized === "daily") {
+      const dt = new Date(Date.UTC(y, m, d - i));
+      dates.push(
+        fmtDate(dt.getUTCFullYear(), dt.getUTCMonth(), dt.getUTCDate())
+      );
+    } else if (normalized === "weekly") {
+      const day = now.getUTCDay();
+      const diff = day === 0 ? 6 : day - 1;
+      const monday = new Date(Date.UTC(y, m, d - diff - i * 7));
+      dates.push(
+        fmtDate(
+          monday.getUTCFullYear(),
+          monday.getUTCMonth(),
+          monday.getUTCDate()
+        )
+      );
+    } else {
+      // monthly
+      const dt = new Date(Date.UTC(y, m - i, 1));
+      dates.push(
+        fmtDate(dt.getUTCFullYear(), dt.getUTCMonth(), 1)
+      );
+    }
+  }
+
+  return dates;
+}
+
+export async function getActivityHistory(
+  activityId: string,
+  userId: string,
+  limit?: number
+): Promise<{ period: string; history: ActivityHistoryEntry[] }> {
+  const activity = await db("activities")
+    .where({ id: activityId, user_id: userId })
+    .first();
+
+  if (!activity) {
+    throw new Error("Activity not found");
+  }
+
+  const period = (activity.period as string).toLowerCase();
+  const count = limit ?? DEFAULT_LIMITS[period] ?? 7;
+  const dates = generatePeriodStarts(period, count);
+
+  const rows = await db("activities_history")
+    .select("start_date", "count")
+    .where({ activity_id: activityId })
+    .whereIn("start_date", dates);
+
+  const countMap = new Map<string, number>();
+  for (const row of rows) {
+    countMap.set(row.start_date, Number(row.count));
+  }
+
+  const history: ActivityHistoryEntry[] = dates.map((startDate) => ({
+    startDate,
+    count: countMap.get(startDate) ?? 0,
+  }));
+
+  return { period, history };
 }
 
 export async function updateActivityForUser(

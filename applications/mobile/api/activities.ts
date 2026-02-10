@@ -1,4 +1,4 @@
-import type { Activity, ActivityPeriod } from '@yet-another-habit-app/shared-types';
+import type { Activity, ActivityHistoryEntry, ActivityPeriod } from '@yet-another-habit-app/shared-types';
 import { getApiBaseUrl } from '@/api/baseUrl';
 import { auth } from '@/auth/firebaseClient';
 
@@ -128,6 +128,22 @@ export async function updateActivity(
 
   invalidateActivitiesCache();
   return json.activity;
+}
+
+export async function getActivityHistory(
+  activityId: string,
+  limit?: number,
+): Promise<{ period: string; history: ActivityHistoryEntry[] }> {
+  const { token } = await getAuthedContext();
+
+  return apiFetch<{ period: string; history: ActivityHistoryEntry[] }>(
+    'GET',
+    `/activities/${activityId}/history`,
+    {
+      token,
+      query: limit !== undefined ? { limit: String(limit) } : undefined,
+    },
+  );
 }
 
 // --- Debounced activity count updates ---

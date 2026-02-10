@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -8,8 +8,14 @@ import {
   View,
 } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
+import type { ActivityHistoryEntry } from '@yet-another-habit-app/shared-types';
 
-import { updateActivity, debouncedUpdateActivityCount } from '@/api/activities';
+import {
+  updateActivity,
+  debouncedUpdateActivityCount,
+  getActivityHistory,
+} from '@/api/activities';
+import { ActivityHistoryChart } from '@/components/activity-history-chart';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 
@@ -36,9 +42,28 @@ export default function ActivityDetailScreen() {
   const completionPercent =
     currentGoal > 0 ? Math.min(100, Math.round((count / currentGoal) * 100)) : 0;
 
+  const [history, setHistory] = useState<ActivityHistoryEntry[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(true);
+
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    setHistoryLoading(true);
+    getActivityHistory(activityId)
+      .then((result) => {
+        if (!cancelled) setHistory(result.history);
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setHistoryLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [activityId]);
 
   function handleDelta(delta: number) {
     const newCount = Math.max(0, count + delta);
@@ -159,6 +184,19 @@ export default function ActivityDetailScreen() {
             keyboardType="number-pad"
             className="rounded-[12px] border border-black/10 bg-black/5 px-3 py-2.5 text-[15px] text-neutral-900 dark:border-white/10 dark:bg-white/10 dark:text-white"
           />
+
+          {/* History chart */}
+          {historyLoading ? (
+            <ThemedText className="mt-6 text-center text-[13px] opacity-60">
+              Loading history...
+            </ThemedText>
+          ) : (
+            <ActivityHistoryChart
+              history={history}
+              goalCount={currentGoal}
+              period={params.period ?? 'daily'}
+            />
+          )}
 
           {/* Count controls */}
           <View className="mt-6 items-center">

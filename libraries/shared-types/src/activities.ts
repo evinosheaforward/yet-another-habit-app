@@ -14,6 +14,11 @@ export interface Activity {
   period: ActivityPeriod;
 }
 
+export interface ActivityHistoryEntry {
+  startDate: string; // YYYY-MM-DD
+  count: number;
+}
+
 export function isActivityPeriod(value: unknown): value is ActivityPeriod {
   return (
     value === ActivityPeriod.Daily ||

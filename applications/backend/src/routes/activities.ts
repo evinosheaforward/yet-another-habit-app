@@ -4,6 +4,7 @@ import type { ActivityPeriod } from '@yet-another-habit-app/shared-types';
 import {
   createActivityForUser,
   getActivitiesForUser,
+  getActivityHistory,
   updateActivityCount,
   updateActivityForUser,
 } from '../db/activitiesModel';
@@ -105,6 +106,29 @@ router.put('/activities/:activityId', async (req: Request, res: Response) => {
     return res.json({ activity });
   } catch {
     return res.status(500).json({ error: 'Failed to update activity' });
+  }
+});
+
+router.get('/activities/:activityId/history', async (req: Request, res: Response) => {
+  const authedUid = req.auth?.uid;
+  if (!authedUid) return res.status(401).json({ error: 'Not authenticated' });
+
+  const { activityId } = req.params;
+  const rawLimit = req.query.limit;
+  let limit: number | undefined;
+
+  if (rawLimit !== undefined) {
+    limit = Math.floor(Number(rawLimit));
+    if (!Number.isFinite(limit) || limit < 1 || limit > 365) {
+      return res.status(400).json({ error: 'limit must be between 1 and 365' });
+    }
+  }
+
+  try {
+    const result = await getActivityHistory(activityId, authedUid, limit);
+    return res.json(result);
+  } catch {
+    return res.status(404).json({ error: 'Activity not found' });
   }
 });
 

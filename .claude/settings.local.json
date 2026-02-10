@@ -36,7 +36,13 @@
       "mcp__project-tools__build_all",
       "mcp__project-tools__migrate",
       "mcp__project-tools__typecheck",
-      "mcp__project-tools__lint_workspace"
+      "mcp__project-tools__lint_workspace",
+      "Bash(npx --workspace applications/mobile jest --no-coverage --testPathPattern \"collapsible\")",
+      "Bash(npx:*)",
+      "WebFetch(domain:github.com)",
+      "WebSearch",
+      "WebFetch(domain:docs.expo.dev)",
+      "WebFetch(domain:expo.dev)"
     ]
   },
   "enableAllProjectMcpServers": true,
