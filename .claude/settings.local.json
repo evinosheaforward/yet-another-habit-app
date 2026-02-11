@@ -42,7 +42,8 @@
       "WebFetch(domain:github.com)",
       "WebSearch",
       "WebFetch(domain:docs.expo.dev)",
-      "WebFetch(domain:expo.dev)"
+      "WebFetch(domain:expo.dev)",
+      "Bash(npm cache clean:*)"
     ]
   },
   "enableAllProjectMcpServers": true,
