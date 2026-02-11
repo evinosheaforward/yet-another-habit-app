@@ -1,5 +1,10 @@
-import { PropsWithChildren, useMemo, useState } from 'react';
+import { PropsWithChildren, useEffect, useMemo, useState } from 'react';
 import { TouchableOpacity, View } from 'react-native';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -44,27 +49,33 @@ export function Collapsible({
 
   const pct = clampPct(progressPct);
 
+  const rotation = useSharedValue(open ? 90 : 0);
+
+  useEffect(() => {
+    rotation.value = withTiming(open ? 90 : 0, { duration: 200 });
+  }, [open, rotation]);
+
+  const chevronStyle = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${rotation.value}deg` }],
+  }));
+
   return (
     <ThemedView className="overflow-hidden rounded-2xl border border-black/10 bg-white dark:border-white/10 dark:bg-neutral-950">
       <TouchableOpacity onPress={handlePress} activeOpacity={0.85} className="relative">
         {/* Header row background */}
         <View className="absolute inset-0 bg-black/[0.03] dark:bg-white/[0.06]" />
-        <View
-          className="absolute inset-y-0 left-0 bg-emerald-500/20 dark:bg-emerald-500/25"
-          style={undefined as any} // intentionally unused; see width component below
-        />
 
         <ProgressFill pct={pct} />
 
         <View className="flex-row items-center gap-2.5 px-3.5 py-3.5">
-          <View className={`text-neutral-700 dark:text-white ${open ? 'rotate-90' : 'rotate-0'}`}>
+          <Animated.View style={chevronStyle}>
             <IconSymbol
               name="chevron.right"
               size={18}
               weight="medium"
               color={colorScheme === 'dark' ? '#FFFFFF' : '#52525B'}
             />
-          </View>
+          </Animated.View>
 
           <View className="flex-1 flex-row items-baseline justify-between gap-2.5">
             <ThemedText
@@ -89,18 +100,12 @@ export function Collapsible({
   );
 }
 
-/**
- * ProgressFill
- * - Pure Tailwind/NativeWind (no style prop)
- * - Renders a smooth-ish bar using 50 blocks (2% granularity)
- * - Keeps your “subtle elegant green fill” vibe behind the header content
- */
 function ProgressFill({ pct }: { pct: number }) {
-  const blocks = 50; // 2% increments
+  const blocks = 50;
   const filled = Math.round((pct / 100) * blocks);
 
   return (
-    <View className="absolute inset-0 flex-row dark:text-white">
+    <View className="absolute inset-0 flex-row">
       {Array.from({ length: blocks }).map((_, i) => (
         <View
           key={i}

@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { TextInput, TouchableOpacity } from 'react-native';
+import { Text, TextInput, TouchableOpacity } from 'react-native';
 import { Link, router } from 'expo-router';
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 
 import { auth } from '@/auth/firebaseClient';
+import { getAuthErrorMessage } from '@/auth/firebaseErrors';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 
@@ -27,8 +28,8 @@ export default function SignupScreen() {
       }
 
       router.replace('/');
-    } catch (e: any) {
-      setError(e?.message ?? 'Sign up failed');
+    } catch (e) {
+      setError(getAuthErrorMessage(e));
     } finally {
       setBusy(false);
     }
@@ -36,7 +37,7 @@ export default function SignupScreen() {
 
   return (
     <ThemedView className="flex-1 justify-center px-5">
-      <ThemedView className="rounded-[18px] border border-black/10 bg-white p-[18px] dark:border-white/10 dark:bg-neutral-950">
+      <ThemedView className="rounded-[18px] border border-black/10 bg-white p-[18px] dark:border-white/10 dark:bg-neutral-900">
         <ThemedText type="title" className="mt-1 text-neutral-900 dark:text-white">
           Create account
         </ThemedText>
@@ -46,7 +47,7 @@ export default function SignupScreen() {
 
         <ThemedView className="mt-1 gap-3">
           <TextInput
-            className="rounded-[14px] border border-black/10 bg-white px-4 py-3 text-neutral-900 dark:border-white/10 dark:bg-neutral-950 dark:text-white"
+            className="rounded-[14px] border border-black/10 bg-white px-4 py-3 text-neutral-900 dark:border-white/10 dark:bg-neutral-900 dark:text-white"
             placeholder="Display name (optional)"
             placeholderTextColor="#8E8E93"
             autoCapitalize="words"
@@ -56,7 +57,7 @@ export default function SignupScreen() {
           />
 
           <TextInput
-            className="rounded-[14px] border border-black/10 bg-white px-4 py-3 text-neutral-900 dark:border-white/10 dark:bg-neutral-950 dark:text-white"
+            className="rounded-[14px] border border-black/10 bg-white px-4 py-3 text-neutral-900 dark:border-white/10 dark:bg-neutral-900 dark:text-white"
             placeholder="Email"
             placeholderTextColor="#8E8E93"
             autoCapitalize="none"
@@ -67,7 +68,7 @@ export default function SignupScreen() {
           />
 
           <TextInput
-            className="rounded-[14px] border border-black/10 bg-white px-4 py-3 text-neutral-900 dark:border-white/10 dark:bg-neutral-950 dark:text-white"
+            className="rounded-[14px] border border-black/10 bg-white px-4 py-3 text-neutral-900 dark:border-white/10 dark:bg-neutral-900 dark:text-white"
             placeholder="Password"
             placeholderTextColor="#8E8E93"
             secureTextEntry
@@ -87,14 +88,14 @@ export default function SignupScreen() {
             disabled={busy}
             activeOpacity={0.85}
             className={[
-              'mt-1 rounded-[14px] border border-indigo-500/80 bg-indigo-500/10 py-3',
+              'mt-1 rounded-[14px] bg-indigo-500 py-3',
               'items-center justify-center',
               busy ? 'opacity-60' : 'opacity-100',
             ].join(' ')}
           >
-            <ThemedText type="defaultSemiBold" className="text-neutral-900 dark:text-white">
+            <Text className="text-[16px] font-semibold text-white">
               {busy ? 'Creating…' : 'Sign up'}
-            </ThemedText>
+            </Text>
           </TouchableOpacity>
 
           <ThemedView className="mt-2 flex-row items-center justify-center gap-2">

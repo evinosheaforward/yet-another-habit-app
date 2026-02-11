@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
   Platform,
@@ -367,9 +368,9 @@ export default function ActivityDetailScreen() {
 
           {/* History chart */}
           {historyLoading ? (
-            <ThemedText className="mt-6 text-center text-[13px] opacity-60">
-              Loading history...
-            </ThemedText>
+            <View className="mt-6 items-center py-4">
+              <ActivityIndicator size="small" />
+            </View>
           ) : (
             <ActivityHistoryChart
               history={history}

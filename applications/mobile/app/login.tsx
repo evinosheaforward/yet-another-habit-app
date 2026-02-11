@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity } from 'react-native';
+import { Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Link, router } from 'expo-router';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 
 import { auth } from '@/auth/firebaseClient';
+import { getAuthErrorMessage } from '@/auth/firebaseErrors';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 
@@ -20,8 +21,8 @@ export default function LoginScreen() {
     try {
       await signInWithEmailAndPassword(auth, email.trim(), password);
       router.replace('/');
-    } catch (e: any) {
-      setError(e?.message ?? 'Login failed');
+    } catch (e) {
+      setError(getAuthErrorMessage(e));
     } finally {
       setBusy(false);
     }
@@ -29,7 +30,7 @@ export default function LoginScreen() {
 
   return (
     <ThemedView className="flex-1 justify-center px-5">
-      <ThemedView className="rounded-[18px] border border-black/10 bg-white p-[18px] dark:border-white/10 dark:bg-neutral-950">
+      <ThemedView className="rounded-[18px] border border-black/10 bg-white p-[18px] dark:border-white/10 dark:bg-neutral-900">
         <ThemedText type="title" className="mt-1 text-neutral-900 dark:text-white">
           Welcome back
         </ThemedText>
@@ -39,7 +40,7 @@ export default function LoginScreen() {
 
         <ThemedView className="mt-1 gap-3">
           <TextInput
-            className="rounded-[14px] border border-black/10 bg-white px-4 py-3 text-neutral-900 dark:border-white/10 dark:bg-neutral-950 dark:text-white"
+            className="rounded-[14px] border border-black/10 bg-white px-4 py-3 text-neutral-900 dark:border-white/10 dark:bg-neutral-900 dark:text-white"
             placeholder="Email"
             placeholderTextColor="#8E8E93"
             autoCapitalize="none"
@@ -50,7 +51,7 @@ export default function LoginScreen() {
           />
 
           <TextInput
-            className="rounded-[14px] border border-black/10 bg-white px-4 py-3 text-neutral-900 dark:border-white/10 dark:bg-neutral-950 dark:text-white"
+            className="rounded-[14px] border border-black/10 bg-white px-4 py-3 text-neutral-900 dark:border-white/10 dark:bg-neutral-900 dark:text-white"
             placeholder="Password"
             placeholderTextColor="#8E8E93"
             secureTextEntry
@@ -70,14 +71,14 @@ export default function LoginScreen() {
             disabled={busy}
             activeOpacity={0.85}
             className={[
-              'mt-1 rounded-[14px] border border-indigo-500/80 bg-indigo-500/10 py-3',
+              'mt-1 rounded-[14px] bg-indigo-500 py-3',
               'items-center justify-center',
               busy ? 'opacity-60' : 'opacity-100',
             ].join(' ')}
           >
-            <ThemedText type="defaultSemiBold" className="text-neutral-900 dark:text-white">
+            <Text className="text-[16px] font-semibold text-white">
               {busy ? 'Signing in…' : 'Log in'}
-            </ThemedText>
+            </Text>
           </TouchableOpacity>
 
           <ThemedView className="mt-2 flex-row items-center justify-center gap-2">

@@ -37,10 +37,16 @@ export default function ActivitiesScreen() {
   const [showCreateStackPicker, setShowCreateStackPicker] = useState(false);
   const [saving, setSaving] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
-    const data = await getActivities(period, { force: true });
-    setActivities(data);
+    try {
+      setFetchError(null);
+      const data = await getActivities(period, { force: true });
+      setActivities(data);
+    } catch {
+      setFetchError('Failed to load activities.');
+    }
   }, [period]);
 
   async function onCreate() {
@@ -91,10 +97,15 @@ export default function ActivitiesScreen() {
     let cancelled = false;
 
     (async () => {
-      const data = await getActivities(period);
-      if (!cancelled) {
-        setActivities(data);
-        setOpenId(null);
+      try {
+        setFetchError(null);
+        const data = await getActivities(period);
+        if (!cancelled) {
+          setActivities(data);
+          setOpenId(null);
+        }
+      } catch {
+        if (!cancelled) setFetchError('Failed to load activities.');
       }
     })();
 
@@ -352,12 +363,40 @@ export default function ActivitiesScreen() {
         </View>
       </Modal>
 
+      {fetchError ? (
+        <View className="mt-4 items-center rounded-[12px] border border-red-500/20 bg-red-500/10 p-3">
+          <ThemedText className="text-[13px] text-red-600 dark:text-red-400">
+            {fetchError}
+          </ThemedText>
+          <Pressable onPress={refresh} className="mt-2 rounded-full bg-black/10 px-3 py-1.5 dark:bg-white/10">
+            <ThemedText className="text-[13px] font-semibold text-neutral-900 dark:text-white">
+              Retry
+            </ThemedText>
+          </Pressable>
+        </View>
+      ) : null}
+
       {/* List */}
       <FlatList
         data={activities}
         keyExtractor={(a) => a.id}
         contentContainerClassName="pt-4 pb-7"
-        ItemSeparatorComponent={() => <View className="h-3 dark:text-white" />}
+        ItemSeparatorComponent={() => <View className="h-3" />}
+        ListEmptyComponent={
+          <View className="items-center py-16">
+            <ThemedText className="text-[15px] opacity-50 text-neutral-700 dark:text-neutral-300">
+              No activities yet
+            </ThemedText>
+            <Pressable
+              onPress={() => setCreateOpen(true)}
+              className="mt-3 rounded-full bg-black/10 px-4 py-2 dark:bg-white/10"
+            >
+              <ThemedText className="text-[13px] font-semibold text-neutral-900 dark:text-white">
+                + Create your first activity
+              </ThemedText>
+            </Pressable>
+          </View>
+        }
         renderItem={({ item }) => (
           <Collapsible
             title={item.title}

@@ -1,4 +1,5 @@
 import { Pressable, View } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import { ThemedText } from '@/components/themed-text';
 
 type Props = {
@@ -20,7 +21,10 @@ export function ActivityCountControls({
     <>
       <View className="flex-row items-center justify-center gap-4">
         <Pressable
-          onPress={onDecrement}
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            onDecrement();
+          }}
           disabled={count <= 0}
           accessibilityRole="button"
           accessibilityLabel="Decrement count"
@@ -40,7 +44,10 @@ export function ActivityCountControls({
         </ThemedText>
 
         <Pressable
-          onPress={onIncrement}
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            onIncrement();
+          }}
           accessibilityRole="button"
           accessibilityLabel="Increment count"
           className="h-9 w-9 items-center justify-center rounded-full border border-black/10 bg-black/5 dark:border-white/10 dark:bg-white/10"
