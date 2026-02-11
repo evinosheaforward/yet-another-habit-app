@@ -20,7 +20,8 @@ async function getAuthedContext(): Promise<AuthedContext> {
 }
 
 function buildUrl(path: string, params?: Record<string, string>) {
-  const url = new URL(path, getApiBaseUrl());
+  const base = getApiBaseUrl().replace(/\/$/, '');
+  const url = new URL(`${base}${path}`);
   if (params) {
     for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
   }

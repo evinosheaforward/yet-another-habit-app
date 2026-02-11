@@ -119,4 +119,21 @@ jest.mock('expo-symbols', () => ({
   SymbolView: 'SymbolView',
 }));
 
+// ---------------------------------------------------------------------------
+// expo-constants – mock for banner-ad Expo Go detection
+// ---------------------------------------------------------------------------
+jest.mock('expo-constants', () => ({
+  __esModule: true,
+  default: { appOwnership: null },
+}));
+
+// ---------------------------------------------------------------------------
+// react-native-google-mobile-ads – mock for banner-ad component
+// ---------------------------------------------------------------------------
+jest.mock('react-native-google-mobile-ads', () => ({
+  BannerAd: 'BannerAd',
+  BannerAdSize: { ANCHORED_ADAPTIVE_BANNER: 'ANCHORED_ADAPTIVE_BANNER' },
+  TestIds: { BANNER: 'ca-app-pub-3940256099942544/6300978111' },
+}));
+
 

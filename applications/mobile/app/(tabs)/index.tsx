@@ -10,6 +10,7 @@ import { ThemedView } from '@/components/themed-view';
 import { deleteUser, getAuth, signOut } from 'firebase/auth';
 import { app } from '@/auth/firebaseClient';
 import { deleteAccount } from '@/api/activities';
+import { BannerAdView } from '@/components/banner-ad';
 
 export default function HomeScreen() {
   const auth = useMemo(() => getAuth(app), []);
@@ -139,15 +140,8 @@ export default function HomeScreen() {
           </View>
         </ThemedView>
 
-        {/* Quick hint */}
-        <ThemedView className="gap-2.5 rounded-[18px] border border-black/10 bg-white p-4 dark:border-white/10 dark:bg-neutral-950">
-          <ThemedText type="subtitle" className="text-neutral-900 dark:text-white">
-            Tip
-          </ThemedText>
-          <ThemedText className="opacity-75 leading-5 text-neutral-700 dark:text-neutral-300">
-            Start small: pick one habit you can do in under 2 minutes. Consistency beats intensity.
-          </ThemedText>
-        </ThemedView>
+        {/* Ad banner */}
+        <BannerAdView />
 
         {/* Logout */}
         <ThemedView className="mt-0.5">
