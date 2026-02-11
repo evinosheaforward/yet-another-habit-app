@@ -114,20 +114,8 @@ export default function HomeScreen() {
               <ThemedText className="text-[14px] text-indigo-500">Privacy Policy</ThemedText>
             </Pressable>
           </Link>
-
-          <View className="my-1.5 h-px bg-black/10 dark:bg-white/10" />
-
-          <View className="flex-row items-center justify-between gap-3">
-            <View className="flex-1 gap-0.5">
-              <ThemedText type="defaultSemiBold" className="text-neutral-900 dark:text-white">
-                Today
-              </ThemedText>
-              <ThemedText className="opacity-75 leading-5 text-neutral-700 dark:text-neutral-300">
-                Ready to check in?
-              </ThemedText>
-            </View>
-
-            <Link href="/(tabs)/activities" asChild>
+           
+   <Link href="/(tabs)/activities" asChild>
               <Pressable
                 className="rounded-[14px] border border-white/20 bg-white/10 px-3.5 py-2.5 dark:border-white/15 dark:bg-white/10"
                 style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}
@@ -137,7 +125,6 @@ export default function HomeScreen() {
                 </ThemedText>
               </Pressable>
             </Link>
-          </View>
         </ThemedView>
 
         {/* Ad banner */}
