@@ -114,10 +114,15 @@ export default function HomeScreen() {
               <ThemedText className="text-[14px] text-indigo-500">Privacy Policy</ThemedText>
             </Pressable>
           </Link>
-           
-   <Link href="/(tabs)/activities" asChild>
+        </ThemedView>
+
+        {/* Ad banner */}
+        <BannerAdView />
+  
+        <ThemedView className="mt-0.5">
+          <Link href="/(tabs)/activities" asChild>
               <Pressable
-                className="rounded-[14px] border border-white/20 bg-white/10 px-3.5 py-2.5 dark:border-white/15 dark:bg-white/10"
+                className="items-center justify-center rounded-[16px] border border-white/10 bg-black/15 px-4 py-[13px] dark:border-white/15 dark:bg-white/10"
                 style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}
               >
                 <ThemedText type="defaultSemiBold" className="text-white/95">
@@ -125,10 +130,7 @@ export default function HomeScreen() {
                 </ThemedText>
               </Pressable>
             </Link>
-        </ThemedView>
-
-        {/* Ad banner */}
-        <BannerAdView />
+        </ThemedView >
 
         {/* Logout */}
         <ThemedView className="mt-0.5">
@@ -137,7 +139,7 @@ export default function HomeScreen() {
             disabled={isSigningOut || isDeleting}
             className={[
               'items-center justify-center rounded-[16px] border px-4 py-[13px]',
-              'border-black/15 bg-transparent dark:border-white/15',
+              'border-black/15 bg-black/8 dark:border-white/15',
               isSigningOut || isDeleting ? 'opacity-55' : 'opacity-100',
             ].join(' ')}
             style={({ pressed }) => ({
