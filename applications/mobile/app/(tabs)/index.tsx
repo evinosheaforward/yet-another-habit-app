@@ -116,9 +116,6 @@ export default function HomeScreen() {
           </Link>
         </ThemedView>
 
-        {/* Ad banner */}
-        <BannerAdView />
-  
         <ThemedView className="mt-0.5">
           <Link href="/(tabs)/activities" asChild>
               <Pressable
@@ -168,6 +165,10 @@ export default function HomeScreen() {
             </ThemedText>
           </Pressable>
         </ThemedView>
+
+        {/* Ad banner */}
+        <BannerAdView />
+  
       </ThemedView>
     </ParallaxScrollView>
   );

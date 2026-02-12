@@ -27,7 +27,7 @@ function loadAdSenseScript(pubId: string) {
 }
 
 export function BannerAdView() {
-  const insRef = useRef<HTMLElement | null>(null);
+  const insRef = useRef<HTMLModElement>(null);
   const [attempt, setAttempt] = useState(0);
 
   const isProduction = !__DEV__ && !!publisherId && !!slotId;
@@ -68,7 +68,7 @@ export function BannerAdView() {
     );
   }
 
-  if (!publisherId || !slotId) return null;
+  if (!publisherId) return null;
 
   return (
     <View className="items-center overflow-hidden rounded-[18px]">
