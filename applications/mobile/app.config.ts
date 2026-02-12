@@ -30,7 +30,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     package: 'com.evinosheasoftware.yetanotherhabitapp',
   },
   web: {
-    favicon: './assets/images/favicon.png',
+    favicon: './assets/favicon.png',
     bundler: 'metro',
   },
   plugins: [
