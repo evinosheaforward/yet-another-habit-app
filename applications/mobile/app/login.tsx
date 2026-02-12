@@ -5,6 +5,7 @@ import { signInWithEmailAndPassword } from 'firebase/auth';
 
 import { auth } from '@/auth/firebaseClient';
 import { getAuthErrorMessage } from '@/auth/firebaseErrors';
+import { BannerAdView } from '@/components/banner-ad';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 
@@ -94,6 +95,9 @@ export default function LoginScreen() {
               </TouchableOpacity>
             </Link>
           </ThemedView>
+
+          {/* Ad banner */}
+          <BannerAdView />
         </ThemedView>
       </ThemedView>
     </ThemedView>

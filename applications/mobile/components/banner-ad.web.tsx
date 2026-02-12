@@ -1,44 +1,65 @@
+// banner-ad.web.tsx
 import { useEffect, useRef, useState } from 'react';
 import { View } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
 
-const publisherId = process.env.EXPO_PUBLIC_ADSENSE_PUBLISHER_ID;
+const publisherId = process.env.EXPO_PUBLIC_ADSENSE_PUBLISHER_ID; // should be "ca-pub-...."
 const slotId = process.env.EXPO_PUBLIC_ADSENSE_SLOT_ID;
 
-function ensureAdSenseScript(pubId: string) {
+function loadAdSenseScript(pubId: string) {
   const id = 'adsense-script';
-  if (document.getElementById(id)) return;
+  const existing = document.getElementById(id) as HTMLScriptElement | null;
+  if (existing) {
+    // If it already exists, assume it will load / is loaded.
+    return Promise.resolve();
+  }
 
-  const script = document.createElement('script');
-  script.id = id;
-  script.async = true;
-  script.crossOrigin = 'anonymous';
-  script.src = `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${pubId}`;
-  document.head.appendChild(script);
+  return new Promise<void>((resolve, reject) => {
+    const script = document.createElement('script');
+    script.id = id;
+    script.async = true;
+    script.crossOrigin = 'anonymous';
+    script.src = `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${pubId}`;
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error('Failed to load AdSense script'));
+    document.head.appendChild(script);
+  });
 }
 
 export function BannerAdView() {
-  const insRef = useRef<HTMLModElement>(null);
-  const [pushed, setPushed] = useState(false);
+  const insRef = useRef<HTMLElement | null>(null);
+  const [attempt, setAttempt] = useState(0);
 
   const isProduction = !__DEV__ && !!publisherId && !!slotId;
 
   useEffect(() => {
     if (!isProduction) return;
 
-    ensureAdSenseScript(publisherId!);
+    let cancelled = false;
 
-    if (!pushed && insRef.current) {
+    (async () => {
       try {
-        ((window as any).adsbygoogle = (window as any).adsbygoogle || []).push({});
-        setPushed(true);
-      } catch {
-        // AdSense not ready yet — harmless
-      }
-    }
-  }, [isProduction, pushed]);
+        await loadAdSenseScript(publisherId!);
+        if (cancelled) return;
 
-  // Dev mode: show placeholder since AdSense won't serve on localhost
+        // Ensure the <ins> exists and then push
+        if (insRef.current) {
+          (window as any).adsbygoogle = (window as any).adsbygoogle || [];
+          (window as any).adsbygoogle.push({});
+        }
+      } catch {
+        // Retry once or twice (script sometimes races)
+        if (!cancelled && attempt < 3) {
+          setTimeout(() => setAttempt((x) => x + 1), 500);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isProduction, attempt]);
+
   if (__DEV__) {
     return (
       <View className="items-center justify-center rounded-[18px] border border-dashed border-black/20 bg-black/5 py-6 dark:border-white/20 dark:bg-white/5">
@@ -52,7 +73,7 @@ export function BannerAdView() {
   return (
     <View className="items-center overflow-hidden rounded-[18px]">
       <ins
-        ref={insRef as any}
+        ref={insRef}
         className="adsbygoogle"
         style={{ display: 'block', width: '100%' }}
         data-ad-client={publisherId}

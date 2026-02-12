@@ -24,7 +24,6 @@
         "EXPO_PUBLIC_ADMOB_BANNER_ANDROID": "ca-app-pub-7549827841883667/5707660509",
         "EXPO_PUBLIC_API_BASE_URL": "https://yetanotherhabitapp.com/api"
       },
-      "prebuildCommand": "npm run build:shared",
       "autoIncrement": true
     }
   },

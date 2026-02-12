@@ -11,7 +11,7 @@
     "lint": "expo lint",
     "lint:fix": "expo lint --fix",
     "build": "tsc -noEmit",
-    "build:shared": "cd ../../ && npm run build:ci",
+    "eas-build-post-install": "cd ../../ && npm run build:shared-types",
     "test": "jest",
     "test:watch": "jest --watch"
   },
