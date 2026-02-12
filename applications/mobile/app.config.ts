@@ -11,7 +11,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   slug: 'yet-another-habit-app',
   version: '1.0.0',
   orientation: 'portrait',
-  icon: './assets/images/favicon.png',
+  icon: './assets/images/app-logo.png',
   scheme: 'mobile',
   userInterfaceStyle: 'automatic',
   newArchEnabled: true,
@@ -21,16 +21,17 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   android: {
     adaptiveIcon: {
       backgroundColor: '#000000',
-      foregroundImage: './assets/images/favicon.png',
-      backgroundImage: './assets/images/favicon.png',
-      monochromeImage: './assets/images/favicon.png',
+      foregroundImage: './assets/images/app-logo.png',
+      backgroundImage: './assets/images/app-logo.png',
+      monochromeImage: './assets/images/app-logo.png',
     },
     edgeToEdgeEnabled: true,
     predictiveBackGestureEnabled: false,
     package: 'com.evinosheasoftware.yetanotherhabitapp',
+    googleServicesFile: "./google-services.json",
   },
   web: {
-    favicon: './assets/favicon.png',
+    favicon: './assets/images/favicon.png',
     bundler: 'metro',
   },
   plugins: [
