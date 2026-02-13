@@ -7,12 +7,15 @@ import ParallaxScrollView from '@/components/parallax-scroll-view';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 
-import { getAuth, signOut } from 'firebase/auth';
+import { deleteUser, getAuth, signOut } from 'firebase/auth';
 import { app } from '@/auth/firebaseClient';
+import { deleteAccount } from '@/api/activities';
+import { BannerAdView } from '@/components/banner-ad';
 
 export default function HomeScreen() {
   const auth = useMemo(() => getAuth(app), []);
   const [isSigningOut, setIsSigningOut] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const email = auth.currentUser?.email ?? '';
   const displayName =
@@ -30,6 +33,37 @@ export default function HomeScreen() {
     } finally {
       setIsSigningOut(false);
     }
+  }
+
+  function handleDeleteAccount() {
+    Alert.alert(
+      'Delete Account?',
+      'This will permanently delete your account and all your data. This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setIsDeleting(true);
+              await deleteAccount();
+              // Belt-and-suspenders: also delete client-side Firebase user
+              try {
+                if (auth.currentUser) await deleteUser(auth.currentUser);
+              } catch {
+                // Backend already deleted — ignore
+              }
+              await signOut(auth);
+              router.replace('/login');
+            } catch (e: any) {
+              Alert.alert('Delete failed', e?.message ?? 'Unknown error');
+              setIsDeleting(false);
+            }
+          },
+        },
+      ],
+    );
   }
 
   return (
@@ -75,21 +109,17 @@ export default function HomeScreen() {
             {email ? `Signed in as ${email}` : 'Signed in'}
           </ThemedText>
 
-          <View className="my-1.5 h-px bg-black/10 dark:bg-white/10" />
+          <Link href="/privacy-policy" asChild>
+            <Pressable>
+              <ThemedText className="text-[14px] text-indigo-500">Privacy Policy</ThemedText>
+            </Pressable>
+          </Link>
+        </ThemedView>
 
-          <View className="flex-row items-center justify-between gap-3">
-            <View className="flex-1 gap-0.5">
-              <ThemedText type="defaultSemiBold" className="text-neutral-900 dark:text-white">
-                Today
-              </ThemedText>
-              <ThemedText className="opacity-75 leading-5 text-neutral-700 dark:text-neutral-300">
-                Ready to check in?
-              </ThemedText>
-            </View>
-
-            <Link href="/(tabs)/activities" asChild>
+        <ThemedView className="mt-0.5">
+          <Link href="/(tabs)/activities" asChild>
               <Pressable
-                className="rounded-[14px] border border-white/20 bg-white/10 px-3.5 py-2.5 dark:border-white/15 dark:bg-white/10"
+                className="items-center justify-center rounded-[16px] border border-white/10 bg-black/15 px-4 py-[13px] dark:border-white/15 dark:bg-white/10"
                 style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}
               >
                 <ThemedText type="defaultSemiBold" className="text-white/95">
@@ -97,36 +127,48 @@ export default function HomeScreen() {
                 </ThemedText>
               </Pressable>
             </Link>
-          </View>
-        </ThemedView>
-
-        {/* Quick hint */}
-        <ThemedView className="gap-2.5 rounded-[18px] border border-black/10 bg-white p-4 dark:border-white/10 dark:bg-neutral-950">
-          <ThemedText type="subtitle" className="text-neutral-900 dark:text-white">
-            Tip
-          </ThemedText>
-          <ThemedText className="opacity-75 leading-5 text-neutral-700 dark:text-neutral-300">
-            Start small: pick one habit you can do in under 2 minutes. Consistency beats intensity.
-          </ThemedText>
-        </ThemedView>
+        </ThemedView >
 
         {/* Logout */}
         <ThemedView className="mt-0.5">
           <Pressable
             onPress={handleLogout}
-            disabled={isSigningOut}
+            disabled={isSigningOut || isDeleting}
             className={[
               'items-center justify-center rounded-[16px] border px-4 py-[13px]',
-              'border-black/15 bg-transparent dark:border-white/15',
-              isSigningOut ? 'opacity-55' : 'opacity-100',
+              'border-black/15 bg-black/8 dark:border-white/15',
+              isSigningOut || isDeleting ? 'opacity-55' : 'opacity-100',
             ].join(' ')}
-            style={({ pressed }) => ({ opacity: pressed && !isSigningOut ? 0.85 : undefined })}
+            style={({ pressed }) => ({
+              opacity: pressed && !isSigningOut && !isDeleting ? 0.85 : undefined,
+            })}
           >
             <ThemedText type="defaultSemiBold" className="text-neutral-900 dark:text-white">
               {isSigningOut ? 'Logging out…' : 'Logout'}
             </ThemedText>
           </Pressable>
         </ThemedView>
+
+        {/* Delete account */}
+        <ThemedView>
+          <Pressable
+            onPress={handleDeleteAccount}
+            disabled={isDeleting || isSigningOut}
+            className={[
+              'items-center justify-center rounded-[16px] border px-4 py-[13px]',
+              'border-red-500/30 bg-red-500/10',
+              isDeleting || isSigningOut ? 'opacity-55' : 'opacity-100',
+            ].join(' ')}
+          >
+            <ThemedText type="defaultSemiBold" className="text-red-600 dark:text-red-400">
+              {isDeleting ? 'Deleting account…' : 'Delete Account'}
+            </ThemedText>
+          </Pressable>
+        </ThemedView>
+
+        {/* Ad banner */}
+        <BannerAdView />
+  
       </ThemedView>
     </ParallaxScrollView>
   );

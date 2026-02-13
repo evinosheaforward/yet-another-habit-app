@@ -1,0 +1,26 @@
+appId: com.anonymous.yetanotherhabitapp
+---
+# Signup flow - tests the signup screen
+- launchApp
+
+# Navigate to signup from login
+- tapOn: "Sign up"
+
+# Verify signup screen is visible
+- assertVisible: "Create Account"
+
+# Fill in signup form
+- tapOn:
+    id: "displayName"
+- inputText: "Test User"
+
+- tapOn:
+    id: "email"
+- inputText: "newuser@example.com"
+
+- tapOn:
+    id: "password"
+- inputText: "securePass123"
+
+# Tap create account
+- tapOn: "Create Account"

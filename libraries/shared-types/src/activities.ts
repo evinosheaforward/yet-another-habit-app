@@ -1,15 +1,24 @@
 export enum ActivityPeriod {
-  Daily = 'Daily',
-  Weekly = 'Weekly',
-  Monthly = 'Monthly',
+  Daily = 'daily',
+  Weekly = 'weekly',
+  Monthly = 'monthly',
 }
 
 export interface Activity {
   id: string;
   title: string;
   description: string;
+  goalCount: number;
+  count: number;
   completionPercent: number;
   period: ActivityPeriod;
+  stackedActivityId: string | null;
+  stackedActivityTitle: string | null;
+}
+
+export interface ActivityHistoryEntry {
+  startDate: string; // YYYY-MM-DD
+  count: number;
 }
 
 export function isActivityPeriod(value: unknown): value is ActivityPeriod {

@@ -119,6 +119,9 @@ dist
 # Firebase cache directory
 .firebase/
 
+# Firebase service account keys
+*-firebase-adminsdk-*.json
+
 # TernJS port file
 .tern-port
 
@@ -140,3 +143,6 @@ vite.config.ts.timestamp-*
 
 # local sqlite
 data/
+
+# google services
+google-services.json

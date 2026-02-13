@@ -8,11 +8,13 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "build": "tsc -p tsconfig.json",
-    "start": "node --env-file=.env dist/server.js",
-    "migrate": "knex migrate:latest --knexfile knexfile.ts",
-    "migrate:make": "knex migrate:make --knexfile knexfile.ts",
-    "migrate:rollback": "knex migrate:rollback --knexfile knexfile.ts",
-    "db:reset": "rm data/dev.sqlite3 && knex migrate:latest --knexfile knexfile.ts"
+    "start": "node --env-file=.env --import tsx src/server.js",
+    "db:reset": "rm data/dev.sqlite3 && knex migrate:latest --knexfile knexfile.ts",
+    "knex": "node --env-file=.env --import tsx ../../node_modules/knex/bin/cli.js",
+    "migrate": "npm run knex -- migrate:latest --knexfile knexfile.ts",
+    "migrate:rollback": "npm run knex -- migrate:rollback --knexfile knexfile.ts",
+    "migrate:status": "npm run knex -- migrate:status --knexfile knexfile.ts",
+    "seed": "npm run knex -- seed:run --knexfile knexfile.ts"
   },
   "dependencies": {
     "@yet-another-habit-app/shared-types": "^0.1.0",
@@ -21,7 +23,7 @@
     "firebase-admin": "^12.0.0",
     "knex": "^3.1.0",
     "mysql2": "^3.16.0",
-    "sqlite3": "^5.1.7"
+    "sqlite3": "^5.0.2"
   },
   "devDependencies": {
     "@types/cors": "^2.8.19",

@@ -1,0 +1,19 @@
+appId: com.anonymous.yetanotherhabitapp
+---
+# Login flow - tests the login screen for basic interactions
+- launchApp
+
+# Verify we land on the login screen (when not authenticated)
+- assertVisible: "Log In"
+
+# Enter credentials
+- tapOn:
+    id: "email"
+- inputText: "test@example.com"
+
+- tapOn:
+    id: "password"
+- inputText: "password123"
+
+# Tap the login button
+- tapOn: "Log In"

@@ -1,0 +1,32 @@
+{
+  "cli": {
+    "version": ">= 16.32.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal"
+    },
+    "preview": {
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      }
+    },
+    "production": {
+      "env": {
+        "EXPO_PUBLIC_USE_FIREBASE_EMULATOR": "false",
+        "EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN": "yet-another-habit-app-c7ff0.firebaseapp.com",
+        "EXPO_PUBLIC_FIREBASE_PROJECT_ID": "yet-another-habit-app-c7ff0",
+        "EXPO_PUBLIC_FIREBASE_APP_ID": "1:796738151214:web:be2ab812702d9b64d1d0bf",
+        "EXPO_PUBLIC_ADMOB_BANNER_ANDROID": "ca-app-pub-7549827841883667/5707660509",
+        "EXPO_PUBLIC_API_BASE_URL": "https://yetanotherhabitapp.com/api"
+      },
+      "autoIncrement": true
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}

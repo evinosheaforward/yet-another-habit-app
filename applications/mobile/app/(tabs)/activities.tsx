@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   FlatList,
   KeyboardAvoidingView,
@@ -8,15 +8,23 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { createActivity, getActivities } from '@/api/activities';
+import { useRouter } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
+import { createActivity, getActivities, debouncedUpdateActivityCount } from '@/api/activities';
 
+import { ActivityCountControls } from '@/components/activity-count-controls';
 import { Collapsible } from '@/components/ui/collapsible';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 
 import { Activity, ActivityPeriod } from '@yet-another-habit-app/shared-types';
 
+function capitalize(s: string) {
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
 export default function ActivitiesScreen() {
+  const router = useRouter();
   const [period, setPeriod] = useState<ActivityPeriod>(ActivityPeriod.Daily);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [openId, setOpenId] = useState<string | null>(null);
@@ -24,13 +32,22 @@ export default function ActivitiesScreen() {
   const [createOpen, setCreateOpen] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const [newDescription, setNewDescription] = useState('');
+  const [newGoalCount, setNewGoalCount] = useState('');
+  const [newStackedActivityId, setNewStackedActivityId] = useState<string | null>(null);
+  const [showCreateStackPicker, setShowCreateStackPicker] = useState(false);
   const [saving, setSaving] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
-  async function refresh() {
-    const data = await getActivities(period);
-    setActivities(data);
-  }
+  const refresh = useCallback(async () => {
+    try {
+      setFetchError(null);
+      const data = await getActivities(period, { force: true });
+      setActivities(data);
+    } catch {
+      setFetchError('Failed to load activities.');
+    }
+  }, [period]);
 
   async function onCreate() {
     setCreateError(null);
@@ -41,17 +58,33 @@ export default function ActivitiesScreen() {
       return;
     }
 
+    const rawGoal = newGoalCount.trim();
+    if (rawGoal === '' || !/^\d+$/.test(rawGoal)) {
+      setCreateError('Goal count must be a positive whole number.');
+      return;
+    }
+    const goalCount = Number(rawGoal);
+    if (goalCount < 1) {
+      setCreateError('Goal count must be at least 1.');
+      return;
+    }
+
     try {
       setSaving(true);
       await createActivity({
         title,
         description: newDescription.trim(),
         period,
+        goalCount,
+        stackedActivityId: newStackedActivityId,
       });
 
       setCreateOpen(false);
       setNewTitle('');
       setNewDescription('');
+      setNewGoalCount('');
+      setNewStackedActivityId(null);
+      setShowCreateStackPicker(false);
       await refresh();
     } catch (e: any) {
       setCreateError(e?.message ?? 'Failed to create activity.');
@@ -64,10 +97,15 @@ export default function ActivitiesScreen() {
     let cancelled = false;
 
     (async () => {
-      const data = await getActivities(period);
-      if (!cancelled) {
-        setActivities(data);
-        setOpenId(null);
+      try {
+        setFetchError(null);
+        const data = await getActivities(period);
+        if (!cancelled) {
+          setActivities(data);
+          setOpenId(null);
+        }
+      } catch {
+        if (!cancelled) setFetchError('Failed to load activities.');
       }
     })();
 
@@ -76,8 +114,65 @@ export default function ActivitiesScreen() {
     };
   }, [period]);
 
+  // Re-fetch when screen regains focus (e.g. returning from detail page)
+  useFocusEffect(
+    useCallback(() => {
+      refresh();
+    }, [refresh]),
+  );
+
   function toggleActivity(id: string) {
     setOpenId((cur) => (cur === id ? null : id));
+  }
+
+  function handleDelta(activityId: string, delta: number) {
+    // Optimistic update
+    setActivities((prev) =>
+      prev.map((a) => {
+        if (a.id !== activityId) return a;
+        const newCount = Math.max(0, a.count + delta);
+        const completionPercent =
+          a.goalCount > 0 ? Math.min(100, Math.round((newCount / a.goalCount) * 100)) : 0;
+        return { ...a, count: newCount, completionPercent };
+      }),
+    );
+
+    debouncedUpdateActivityCount(
+      activityId,
+      delta,
+      () => {
+        refresh();
+
+        // Navigate to stacked activity on increment
+        if (delta > 0) {
+          const source = activities.find((a) => a.id === activityId);
+          if (source?.stackedActivityId) {
+            const stacked = activities.find((a) => a.id === source.stackedActivityId);
+            if (stacked) {
+              router.push({
+                pathname: '/activity/[id]',
+                params: {
+                  id: stacked.id,
+                  title: stacked.title,
+                  description: stacked.description,
+                  goalCount: String(stacked.goalCount),
+                  count: String(stacked.count),
+                  completionPercent: String(stacked.completionPercent),
+                  period: stacked.period,
+                  stackedActivityId: stacked.stackedActivityId ?? '',
+                  stackedActivityTitle: stacked.stackedActivityTitle ?? '',
+                  showStackPrompt: '1',
+                },
+              });
+            }
+          }
+        }
+      },
+      () => {
+        // Revert on error by refreshing
+        refresh();
+      },
+    );
   }
 
   return (
@@ -120,7 +215,7 @@ export default function ActivitiesScreen() {
                   active ? 'opacity-100' : 'opacity-75',
                 ].join(' ')}
               >
-                {p}
+                {capitalize(p)}
               </ThemedText>
             </Pressable>
           );
@@ -144,7 +239,7 @@ export default function ActivitiesScreen() {
               <ThemedText className="mb-2 opacity-70 text-neutral-700 dark:text-neutral-300">
                 Period:{' '}
                 <ThemedText className="font-semibold text-neutral-900 dark:text-white">
-                  {period}
+                  {capitalize(period)}
                 </ThemedText>
               </ThemedText>
 
@@ -168,6 +263,74 @@ export default function ActivitiesScreen() {
                 className="mt-2 min-h-[90px] rounded-[12px] border border-black/10 bg-black/5 px-3 py-2.5 text-[15px] text-neutral-900 dark:border-white/10 dark:bg-white/10 dark:text-white"
               />
 
+              <TextInput
+                value={newGoalCount}
+                onChangeText={setNewGoalCount}
+                placeholder="Goal count (times per period)"
+                placeholderTextColor="#8E8E93"
+                editable={!saving}
+                keyboardType="number-pad"
+                className="mt-2 rounded-[12px] border border-black/10 bg-black/5 px-3 py-2.5 text-[15px] text-neutral-900 dark:border-white/10 dark:bg-white/10 dark:text-white"
+              />
+
+              <ThemedText className="mb-1 mt-3 text-[13px] font-semibold uppercase tracking-wide opacity-60 text-neutral-700 dark:text-neutral-300">
+                Stack with (optional)
+              </ThemedText>
+              <Pressable
+                onPress={() => setShowCreateStackPicker((v) => !v)}
+                className="rounded-[12px] border border-black/10 bg-black/5 px-3 py-2.5 dark:border-white/10 dark:bg-white/10"
+              >
+                <ThemedText
+                  className={[
+                    'text-[15px]',
+                    newStackedActivityId
+                      ? 'text-emerald-600 dark:text-emerald-400'
+                      : 'text-neutral-500 dark:text-neutral-400',
+                  ].join(' ')}
+                >
+                  {activities.find((a) => a.id === newStackedActivityId)?.title ?? 'None'}
+                </ThemedText>
+              </Pressable>
+              {showCreateStackPicker ? (
+                <View className="mt-1">
+                  <Pressable
+                    onPress={() => {
+                      setNewStackedActivityId(null);
+                      setShowCreateStackPicker(false);
+                    }}
+                    className={[
+                      'rounded-[10px] border px-3 py-2',
+                      !newStackedActivityId
+                        ? 'border-emerald-500 bg-emerald-500/10'
+                        : 'border-black/10 bg-black/5 dark:border-white/10 dark:bg-white/10',
+                    ].join(' ')}
+                  >
+                    <ThemedText className="text-[14px] text-neutral-900 dark:text-white">
+                      None
+                    </ThemedText>
+                  </Pressable>
+                  {activities.map((a) => (
+                    <Pressable
+                      key={a.id}
+                      onPress={() => {
+                        setNewStackedActivityId(a.id);
+                        setShowCreateStackPicker(false);
+                      }}
+                      className={[
+                        'mt-1 rounded-[10px] border px-3 py-2',
+                        newStackedActivityId === a.id
+                          ? 'border-emerald-500 bg-emerald-500/10'
+                          : 'border-black/10 bg-black/5 dark:border-white/10 dark:bg-white/10',
+                      ].join(' ')}
+                    >
+                      <ThemedText className="text-[14px] text-neutral-900 dark:text-white">
+                        {a.title}
+                      </ThemedText>
+                    </Pressable>
+                  ))}
+                </View>
+              ) : null}
+
               {createError ? (
                 <ThemedText className="mt-2 text-[13px] text-red-500">{createError}</ThemedText>
               ) : null}
@@ -190,7 +353,7 @@ export default function ActivitiesScreen() {
                   disabled={saving}
                   className="rounded-[12px] px-3.5 py-2.5 bg-black/90 dark:bg-white/90 opacity-100"
                 >
-                  <ThemedText className="text-neutral-50 dark:text-white">
+                  <ThemedText lightColor="#ffffff" darkColor="#171717">
                     {saving ? 'Creating...' : 'Create'}
                   </ThemedText>
                 </Pressable>
@@ -200,12 +363,40 @@ export default function ActivitiesScreen() {
         </View>
       </Modal>
 
+      {fetchError ? (
+        <View className="mt-4 items-center rounded-[12px] border border-red-500/20 bg-red-500/10 p-3">
+          <ThemedText className="text-[13px] text-red-600 dark:text-red-400">
+            {fetchError}
+          </ThemedText>
+          <Pressable onPress={refresh} className="mt-2 rounded-full bg-black/10 px-3 py-1.5 dark:bg-white/10">
+            <ThemedText className="text-[13px] font-semibold text-neutral-900 dark:text-white">
+              Retry
+            </ThemedText>
+          </Pressable>
+        </View>
+      ) : null}
+
       {/* List */}
       <FlatList
         data={activities}
         keyExtractor={(a) => a.id}
         contentContainerClassName="pt-4 pb-7"
-        ItemSeparatorComponent={() => <View className="h-3 dark:text-white" />}
+        ItemSeparatorComponent={() => <View className="h-3" />}
+        ListEmptyComponent={
+          <View className="items-center py-16">
+            <ThemedText className="text-[15px] opacity-50 text-neutral-700 dark:text-neutral-300">
+              No activities yet
+            </ThemedText>
+            <Pressable
+              onPress={() => setCreateOpen(true)}
+              className="mt-3 rounded-full bg-black/10 px-4 py-2 dark:bg-white/10"
+            >
+              <ThemedText className="text-[13px] font-semibold text-neutral-900 dark:text-white">
+                + Create your first activity
+              </ThemedText>
+            </Pressable>
+          </View>
+        }
         renderItem={({ item }) => (
           <Collapsible
             title={item.title}
@@ -213,18 +404,52 @@ export default function ActivitiesScreen() {
             isOpen={openId === item.id}
             onToggle={() => toggleActivity(item.id)}
           >
-            <ThemedText className="opacity-85 leading-5 text-neutral-700 dark:text-neutral-300">
-              {item.description}
-            </ThemedText>
+            {item.description ? (
+              <ThemedText className="opacity-85 leading-5 text-neutral-700 dark:text-neutral-300">
+                {item.description}
+              </ThemedText>
+            ) : null}
 
-            <View className="mt-2.5 flex-row items-center justify-between">
-              <ThemedText className="text-[13px] opacity-60 text-neutral-700 dark:text-neutral-300">
-                Complete
+            {item.stackedActivityTitle ? (
+              <ThemedText className="mt-1.5 text-[13px] font-semibold text-emerald-600 dark:text-emerald-400">
+                Next up: {item.stackedActivityTitle}
               </ThemedText>
-              <ThemedText className="text-[13px] opacity-90 text-neutral-900 dark:text-white">
-                {item.completionPercent}%
-              </ThemedText>
+            ) : null}
+
+            <View className="mt-2.5">
+              <ActivityCountControls
+                count={item.count}
+                goalCount={item.goalCount}
+                completionPercent={item.completionPercent}
+                onIncrement={() => handleDelta(item.id, 1)}
+                onDecrement={() => handleDelta(item.id, -1)}
+              />
             </View>
+
+            <Pressable
+              onPress={() =>
+                router.push({
+                  pathname: '/activity/[id]',
+                  params: {
+                    id: item.id,
+                    title: item.title,
+                    description: item.description,
+                    goalCount: String(item.goalCount),
+                    count: String(item.count),
+                    completionPercent: String(item.completionPercent),
+                    period: item.period,
+                    stackedActivityId: item.stackedActivityId ?? '',
+                    stackedActivityTitle: item.stackedActivityTitle ?? '',
+                  },
+                })
+              }
+              accessibilityRole="button"
+              className="mt-3 items-center rounded-[10px] border border-black/10 bg-black/5 px-3 py-2 dark:border-white/10 dark:bg-white/10"
+            >
+              <ThemedText className="text-[13px] font-semibold text-neutral-900 dark:text-white">
+                Details
+              </ThemedText>
+            </Pressable>
           </Collapsible>
         )}
       />
