@@ -143,3 +143,6 @@ vite.config.ts.timestamp-*
 
 # local sqlite
 data/
+
+# google services
+google-services.json
