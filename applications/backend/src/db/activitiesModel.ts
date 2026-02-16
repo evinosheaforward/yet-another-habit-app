@@ -1,5 +1,6 @@
 import type { Activity, ActivityHistoryEntry, ActivityPeriod } from "@yet-another-habit-app/shared-types";
 import { db } from "./knex.js";
+import { getUserConfig } from "./userConfigsModel.js";
 import { randomUUID } from "crypto";
 
 /**
@@ -7,11 +8,13 @@ import { randomUUID } from "crypto";
  */
 export function computePeriodStart(
   period: string,
-  now: Date = new Date()
+  now: Date = new Date(),
+  dayEndOffsetMinutes: number = 0,
 ): string {
-  const y = now.getUTCFullYear();
-  const m = now.getUTCMonth();
-  const d = now.getUTCDate();
+  const adjustedNow = new Date(now.getTime() - dayEndOffsetMinutes * 60_000);
+  const y = adjustedNow.getUTCFullYear();
+  const m = adjustedNow.getUTCMonth();
+  const d = adjustedNow.getUTCDate();
 
   const normalized = period.toLowerCase();
   if (normalized === "daily") {
@@ -19,7 +22,7 @@ export function computePeriodStart(
   }
   if (normalized === "weekly") {
     // ISO 8601: Monday = 1, Sunday = 7
-    const day = now.getUTCDay(); // 0=Sun, 1=Mon, ...
+    const day = adjustedNow.getUTCDay(); // 0=Sun, 1=Mon, ...
     const diff = day === 0 ? 6 : day - 1; // days since Monday
     const mon = new Date(Date.UTC(y, m, d - diff));
     return fmtDate(
@@ -40,7 +43,8 @@ export async function getActivitiesForUser(
   userId: string,
   period: ActivityPeriod
 ): Promise<Activity[]> {
-  const startDate = computePeriodStart(period);
+  const { dayEndOffsetMinutes } = await getUserConfig(userId);
+  const startDate = computePeriodStart(period, new Date(), dayEndOffsetMinutes);
 
   const rows = await db("activities")
     .leftJoin("activities_history", function () {
@@ -152,7 +156,8 @@ export async function updateActivityCount(
   period: string,
   delta: number
 ): Promise<number> {
-  const startDate = computePeriodStart(period);
+  const { dayEndOffsetMinutes } = await getUserConfig(userId);
+  const startDate = computePeriodStart(period, new Date(), dayEndOffsetMinutes);
   const id = randomUUID();
 
   // Verify the activity belongs to this user
@@ -189,15 +194,17 @@ const DEFAULT_LIMITS: Record<string, number> = {
 export function generatePeriodStarts(
   period: string,
   count: number,
-  now: Date = new Date()
+  now: Date = new Date(),
+  dayEndOffsetMinutes: number = 0,
 ): string[] {
+  const adjustedNow = new Date(now.getTime() - dayEndOffsetMinutes * 60_000);
   const normalized = period.toLowerCase();
   const dates: string[] = [];
 
   for (let i = count - 1; i >= 0; i--) {
-    const y = now.getUTCFullYear();
-    const m = now.getUTCMonth();
-    const d = now.getUTCDate();
+    const y = adjustedNow.getUTCFullYear();
+    const m = adjustedNow.getUTCMonth();
+    const d = adjustedNow.getUTCDate();
 
     if (normalized === "daily") {
       const dt = new Date(Date.UTC(y, m, d - i));
@@ -205,7 +212,7 @@ export function generatePeriodStarts(
         fmtDate(dt.getUTCFullYear(), dt.getUTCMonth(), dt.getUTCDate())
       );
     } else if (normalized === "weekly") {
-      const day = now.getUTCDay();
+      const day = adjustedNow.getUTCDay();
       const diff = day === 0 ? 6 : day - 1;
       const monday = new Date(Date.UTC(y, m, d - diff - i * 7));
       dates.push(
@@ -242,7 +249,8 @@ export async function getActivityHistory(
 
   const period = (activity.period as string).toLowerCase();
   const count = limit ?? DEFAULT_LIMITS[period] ?? 7;
-  const dates = generatePeriodStarts(period, count);
+  const { dayEndOffsetMinutes } = await getUserConfig(userId);
+  const dates = generatePeriodStarts(period, count, new Date(), dayEndOffsetMinutes);
 
   const rows = await db("activities_history")
     .select("start_date", "count")
@@ -283,7 +291,8 @@ export async function updateActivityForUser(
     await db("activities").where({ id: activityId, user_id: userId }).update(patch);
   }
 
-  const startDate = computePeriodStart(existing.period);
+  const { dayEndOffsetMinutes } = await getUserConfig(userId);
+  const startDate = computePeriodStart(existing.period, new Date(), dayEndOffsetMinutes);
   const row = await db("activities")
     .leftJoin("activities_history", function () {
       this.on("activities.id", "=", "activities_history.activity_id").andOn(
@@ -384,6 +393,7 @@ export async function deleteAllDataForUser(userId: string): Promise<void> {
   }
 
   await db("activities").where({ user_id: userId }).del();
+  await db("user_configs").where({ user_id: userId }).del();
 }
 
 export async function validateStackTarget(

@@ -1,6 +1,6 @@
 import { Image } from 'expo-image';
-import { useMemo, useState } from 'react';
-import { Alert, Pressable, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Alert, Modal, Pressable, ScrollView, View } from 'react-native';
 import { Link, router } from 'expo-router';
 
 import ParallaxScrollView from '@/components/parallax-scroll-view';
@@ -9,13 +9,49 @@ import { ThemedView } from '@/components/themed-view';
 
 import { deleteUser, getAuth, signOut } from 'firebase/auth';
 import { app } from '@/auth/firebaseClient';
-import { deleteAccount } from '@/api/activities';
+import { deleteAccount, getUserConfig, updateUserConfig } from '@/api/activities';
 import { BannerAdView } from '@/components/banner-ad';
 
 export default function HomeScreen() {
   const auth = useMemo(() => getAuth(app), []);
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [dayEndOffsetMinutes, setDayEndOffsetMinutes] = useState<number | null>(null);
+  const [showDayEndPicker, setShowDayEndPicker] = useState(false);
+
+  useEffect(() => {
+    getUserConfig()
+      .then((config) => setDayEndOffsetMinutes(config.dayEndOffsetMinutes))
+      .catch(() => {});
+  }, []);
+
+  const tzOffsetMinutes = new Date().getTimezoneOffset(); // UTC = local + offset
+  const tzAbbreviation = Intl.DateTimeFormat('en-US', { timeZoneName: 'short' })
+    .formatToParts(new Date())
+    .find((p) => p.type === 'timeZoneName')?.value ?? '';
+
+  function utcMinutesToLocalLabel(utcMinutes: number): string {
+    const localMinutes = ((utcMinutes - tzOffsetMinutes) % 1440 + 1440) % 1440;
+    const h = Math.floor(localMinutes / 60);
+    const period = h < 12 ? 'AM' : 'PM';
+    const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+    return `${h12}:00 ${period}`;
+  }
+
+  const handleSelectDayEnd = useCallback(
+    async (localHour: number) => {
+      setShowDayEndPicker(false);
+      const localMinutes = localHour * 60;
+      const utcMinutes = ((localMinutes + tzOffsetMinutes) % 1440 + 1440) % 1440;
+      try {
+        const config = await updateUserConfig({ dayEndOffsetMinutes: utcMinutes });
+        setDayEndOffsetMinutes(config.dayEndOffsetMinutes);
+      } catch (e: any) {
+        Alert.alert('Failed to update', e?.message ?? 'Unknown error');
+      }
+    },
+    [tzOffsetMinutes],
+  );
 
   const email = auth.currentUser?.email ?? '';
   const displayName =
@@ -115,6 +151,62 @@ export default function HomeScreen() {
             </Pressable>
           </Link>
         </ThemedView>
+
+        {/* Day End Time */}
+        <Pressable
+          onPress={() => setShowDayEndPicker(true)}
+          className="rounded-[18px] border border-black/10 bg-white px-4 py-3.5 dark:border-white/10 dark:bg-neutral-950"
+        >
+          <View className="flex-row items-center justify-between">
+            <ThemedText className="leading-5 text-neutral-700 dark:text-neutral-300">
+              Your days end at{' '}
+              <ThemedText type="defaultSemiBold" className="text-neutral-900 dark:text-white">
+                {dayEndOffsetMinutes !== null ? utcMinutesToLocalLabel(dayEndOffsetMinutes) : '…'}{' '}
+                {tzAbbreviation}
+              </ThemedText>
+            </ThemedText>
+            <ThemedText className="text-[14px] text-indigo-500">Edit</ThemedText>
+          </View>
+        </Pressable>
+
+        <Modal
+          visible={showDayEndPicker}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setShowDayEndPicker(false)}
+        >
+          <View className="flex-1 justify-end bg-black/40">
+            <View className="max-h-[60%] rounded-t-3xl bg-white pb-8 dark:bg-neutral-900">
+              <View className="flex-row items-center justify-between border-b border-black/10 px-5 py-4 dark:border-white/10">
+                <ThemedText type="subtitle" className="text-neutral-900 dark:text-white">
+                  Select day end time
+                </ThemedText>
+                <Pressable onPress={() => setShowDayEndPicker(false)}>
+                  <ThemedText className="text-indigo-500">Cancel</ThemedText>
+                </Pressable>
+              </View>
+
+              <ScrollView>
+                {Array.from({ length: 24 }, (_, h) => {
+                  const period = h < 12 ? 'AM' : 'PM';
+                  const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+                  const label = `${h12}:00 ${period}`;
+                  return (
+                    <Pressable
+                      key={h}
+                      onPress={() => handleSelectDayEnd(h)}
+                      className="border-b border-black/5 px-5 py-3.5 dark:border-white/5"
+                    >
+                      <ThemedText className="text-base text-neutral-900 dark:text-white">
+                        {label}
+                      </ThemedText>
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+            </View>
+          </View>
+        </Modal>
 
         <ThemedView className="mt-0.5">
           <Link href="/(tabs)/activities" asChild>

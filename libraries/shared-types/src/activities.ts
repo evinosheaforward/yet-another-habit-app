@@ -21,6 +21,10 @@ export interface ActivityHistoryEntry {
   count: number;
 }
 
+export interface UserConfig {
+  dayEndOffsetMinutes: number;
+}
+
 export function isActivityPeriod(value: unknown): value is ActivityPeriod {
   return (
     value === ActivityPeriod.Daily ||

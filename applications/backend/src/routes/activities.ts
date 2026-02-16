@@ -12,6 +12,7 @@ import {
   validateStackTarget,
   wouldCreateCycle,
 } from '../db/activitiesModel';
+import { getUserConfig, upsertUserConfig } from '../db/userConfigsModel';
 import { deleteFirebaseUser } from '../auth/firebase';
 import { db } from '../db/knex.js';
 
@@ -219,6 +220,35 @@ router.delete('/account', async (req: Request, res: Response) => {
   } catch {
     return res.status(500).json({ error: 'Failed to delete account' });
   }
+});
+
+router.get('/user-config', async (req: Request, res: Response) => {
+  const authedUid = req.auth?.uid;
+  if (!authedUid) return res.status(401).json({ error: 'Not authenticated' });
+
+  const config = await getUserConfig(authedUid);
+  return res.json(config);
+});
+
+router.put('/user-config', async (req: Request, res: Response) => {
+  const authedUid = req.auth?.uid;
+  if (!authedUid) return res.status(401).json({ error: 'Not authenticated' });
+
+  const { dayEndOffsetMinutes } = req.body ?? {};
+
+  if (
+    typeof dayEndOffsetMinutes !== 'number' ||
+    !Number.isInteger(dayEndOffsetMinutes) ||
+    dayEndOffsetMinutes < 0 ||
+    dayEndOffsetMinutes > 1439
+  ) {
+    return res
+      .status(400)
+      .json({ error: 'dayEndOffsetMinutes must be an integer between 0 and 1439' });
+  }
+
+  const config = await upsertUserConfig(authedUid, { dayEndOffsetMinutes });
+  return res.json(config);
 });
 
 export default router;

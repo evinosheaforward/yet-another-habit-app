@@ -1,4 +1,9 @@
-import type { Activity, ActivityHistoryEntry, ActivityPeriod } from '@yet-another-habit-app/shared-types';
+import type {
+  Activity,
+  ActivityHistoryEntry,
+  ActivityPeriod,
+  UserConfig,
+} from '@yet-another-habit-app/shared-types';
 import { getApiBaseUrl } from '@/api/baseUrl';
 import { auth } from '@/auth/firebaseClient';
 
@@ -161,6 +166,18 @@ export async function deleteAccount(): Promise<void> {
 
   await apiFetch<{ success: boolean }>('DELETE', '/account', { token });
   invalidateActivitiesCache();
+}
+
+// --- User config ---
+
+export async function getUserConfig(): Promise<UserConfig> {
+  const { token } = await getAuthedContext();
+  return apiFetch<UserConfig>('GET', '/user-config', { token });
+}
+
+export async function updateUserConfig(config: UserConfig): Promise<UserConfig> {
+  const { token } = await getAuthedContext();
+  return apiFetch<UserConfig>('PUT', '/user-config', { token, body: config });
 }
 
 // --- Debounced activity count updates ---
