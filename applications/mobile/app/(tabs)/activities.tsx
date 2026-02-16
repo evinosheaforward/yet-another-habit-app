@@ -10,9 +10,9 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
+import * as Haptics from 'expo-haptics';
 import { createActivity, getActivities, debouncedUpdateActivityCount } from '@/api/activities';
 
-import { ActivityCountControls } from '@/components/activity-count-controls';
 import { Collapsible } from '@/components/ui/collapsible';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -368,7 +368,10 @@ export default function ActivitiesScreen() {
           <ThemedText className="text-[13px] text-red-600 dark:text-red-400">
             {fetchError}
           </ThemedText>
-          <Pressable onPress={refresh} className="mt-2 rounded-full bg-black/10 px-3 py-1.5 dark:bg-white/10">
+          <Pressable
+            onPress={refresh}
+            className="mt-2 rounded-full bg-black/10 px-3 py-1.5 dark:bg-white/10"
+          >
             <ThemedText className="text-[13px] font-semibold text-neutral-900 dark:text-white">
               Retry
             </ThemedText>
@@ -412,19 +415,27 @@ export default function ActivitiesScreen() {
 
             {item.stackedActivityTitle ? (
               <ThemedText className="mt-1.5 text-[13px] font-semibold text-emerald-600 dark:text-emerald-400">
-                Next up: {item.stackedActivityTitle}
+                Followed by: {item.stackedActivityTitle}
               </ThemedText>
             ) : null}
 
-            <View className="mt-2.5">
-              <ActivityCountControls
-                count={item.count}
-                goalCount={item.goalCount}
-                completionPercent={item.completionPercent}
-                onIncrement={() => handleDelta(item.id, 1)}
-                onDecrement={() => handleDelta(item.id, -1)}
-              />
-            </View>
+            <Pressable
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                handleDelta(item.id, 1);
+              }}
+              accessibilityRole="button"
+              className="mt-2.5 flex-row items-center justify-center gap-2 rounded-[10px] bg-emerald-600 px-4 py-2.5 dark:bg-emerald-500"
+            >
+              <ThemedText className="text-[14px] font-semibold text-white">
+                {item.completionPercent >= 100
+                  ? '\u2713'
+                  : `${item.count} / ${item.goalCount}`}
+              </ThemedText>
+              <ThemedText className="text-[14px] font-semibold text-white">
+                Complete
+              </ThemedText>
+            </Pressable>
 
             <Pressable
               onPress={() =>

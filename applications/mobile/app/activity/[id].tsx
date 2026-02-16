@@ -10,7 +10,11 @@ import {
   View,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import type { Activity, ActivityHistoryEntry, ActivityPeriod } from '@yet-another-habit-app/shared-types';
+import type {
+  Activity,
+  ActivityHistoryEntry,
+  ActivityPeriod,
+} from '@yet-another-habit-app/shared-types';
 
 import {
   archiveActivity,
@@ -194,23 +198,27 @@ export default function ActivityDetailScreen() {
   }
 
   function handleDelete() {
-    Alert.alert('Delete Activity?', 'This will permanently delete this activity and all its history.', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            setDeleting(true);
-            await deleteActivity(activityId);
-            router.back();
-          } catch (e: any) {
-            setError(e?.message ?? 'Failed to delete activity.');
-            setDeleting(false);
-          }
+    Alert.alert(
+      'Delete Activity?',
+      'This will permanently delete this activity and all its history.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setDeleting(true);
+              await deleteActivity(activityId);
+              router.back();
+            } catch (e: any) {
+              setError(e?.message ?? 'Failed to delete activity.');
+              setDeleting(false);
+            }
+          },
         },
-      },
-    ]);
+      ],
+    );
   }
 
   return (
@@ -219,10 +227,7 @@ export default function ActivityDetailScreen() {
         className="flex-1"
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <ScrollView
-          contentContainerClassName="p-4 pb-10"
-          keyboardShouldPersistTaps="handled"
-        >
+        <ScrollView contentContainerClassName="p-4 pb-10" keyboardShouldPersistTaps="handled">
           {/* Stack prompt banner */}
           {params.showStackPrompt === '1' && !promptDismissed ? (
             <View className="mb-4 rounded-[12px] border border-emerald-500/30 bg-emerald-500/10 p-3">
@@ -260,8 +265,40 @@ export default function ActivityDetailScreen() {
             </View>
           </View>
 
+          {/* History chart */}
+          {historyLoading ? (
+            <View className="items-center py-4">
+              <ActivityIndicator size="small" />
+            </View>
+          ) : (
+            <ActivityHistoryChart
+              history={history}
+              goalCount={currentGoal}
+              period={params.period ?? 'daily'}
+            />
+          )}
+
+          {/* Count controls */}
+          <View className="mt-6 items-center">
+            <ThemedText className="mb-2 text-[13px] font-semibold uppercase tracking-wide opacity-60 text-neutral-700 dark:text-neutral-300">
+              Current Progress
+            </ThemedText>
+            <ActivityCountControls
+              count={count}
+              goalCount={currentGoal}
+              completionPercent={completionPercent}
+              onIncrement={() => handleDelta(1)}
+              onDecrement={() => handleDelta(-1)}
+            />
+          </View>
+
+          {/* Settings section header */}
+          <ThemedText className="mb-1 mt-8 text-[20px] underline font-bold uppercase tracking-wide text-neutral-700 dark:text-neutral-300">
+            Settings
+          </ThemedText>
+
           {/* Title */}
-          <ThemedText className="mb-1 text-[13px] font-semibold uppercase tracking-wide opacity-60 text-neutral-700 dark:text-neutral-300">
+          <ThemedText className="mb-1 mt-4 text-[13px] font-semibold uppercase tracking-wide opacity-60 text-neutral-700 dark:text-neutral-300">
             Title
           </ThemedText>
           <TextInput
@@ -370,33 +407,6 @@ export default function ActivityDetailScreen() {
               ))}
             </View>
           ) : null}
-
-          {/* History chart */}
-          {historyLoading ? (
-            <View className="mt-6 items-center py-4">
-              <ActivityIndicator size="small" />
-            </View>
-          ) : (
-            <ActivityHistoryChart
-              history={history}
-              goalCount={currentGoal}
-              period={params.period ?? 'daily'}
-            />
-          )}
-
-          {/* Count controls */}
-          <View className="mt-6 items-center">
-            <ThemedText className="mb-2 text-[13px] font-semibold uppercase tracking-wide opacity-60 text-neutral-700 dark:text-neutral-300">
-              Current Progress
-            </ThemedText>
-            <ActivityCountControls
-              count={count}
-              goalCount={currentGoal}
-              completionPercent={completionPercent}
-              onIncrement={() => handleDelta(1)}
-              onDecrement={() => handleDelta(-1)}
-            />
-          </View>
 
           {/* Error */}
           {error ? (
