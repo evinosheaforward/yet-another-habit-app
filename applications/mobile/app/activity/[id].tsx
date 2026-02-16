@@ -13,8 +13,10 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import type { Activity, ActivityHistoryEntry, ActivityPeriod } from '@yet-another-habit-app/shared-types';
 
 import {
+  archiveActivity,
   deleteActivity,
   getActivities,
+  unarchiveActivity,
   updateActivity,
   debouncedUpdateActivityCount,
   getActivityHistory,
@@ -37,6 +39,7 @@ export default function ActivityDetailScreen() {
     stackedActivityId: string;
     stackedActivityTitle: string;
     showStackPrompt: string;
+    archived: string;
   }>();
 
   const activityId = params.id;
@@ -56,6 +59,8 @@ export default function ActivityDetailScreen() {
 
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [archiving, setArchiving] = useState(false);
+  const isArchived = params.archived === 'true';
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
 
@@ -409,13 +414,46 @@ export default function ActivityDetailScreen() {
             </ThemedText>
           </Pressable>
 
+          {/* Archive / Unarchive button */}
+          <Pressable
+            onPress={async () => {
+              try {
+                setArchiving(true);
+                if (isArchived) {
+                  await unarchiveActivity(activityId);
+                } else {
+                  await archiveActivity(activityId);
+                }
+                router.back();
+              } catch (e: any) {
+                setError(e?.message ?? 'Failed to update archive status.');
+                setArchiving(false);
+              }
+            }}
+            disabled={archiving || saving || deleting}
+            className={[
+              'mt-3 items-center rounded-[12px] border border-black/10 bg-black/5 px-4 py-3 dark:border-white/10 dark:bg-white/10',
+              archiving || saving || deleting ? 'opacity-55' : 'opacity-100',
+            ].join(' ')}
+          >
+            <ThemedText className="font-semibold text-neutral-900 dark:text-white">
+              {isArchived
+                ? archiving
+                  ? 'Unarchiving...'
+                  : 'Unarchive Activity'
+                : archiving
+                  ? 'Archiving...'
+                  : 'Archive Activity'}
+            </ThemedText>
+          </Pressable>
+
           {/* Delete button */}
           <Pressable
             onPress={handleDelete}
-            disabled={deleting || saving}
+            disabled={deleting || saving || archiving}
             className={[
               'mt-3 items-center rounded-[12px] border border-red-500/30 bg-red-500/10 px-4 py-3',
-              deleting || saving ? 'opacity-55' : 'opacity-100',
+              deleting || saving || archiving ? 'opacity-55' : 'opacity-100',
             ].join(' ')}
           >
             <ThemedText className="font-semibold text-red-600 dark:text-red-400">

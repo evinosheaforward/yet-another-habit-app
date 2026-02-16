@@ -73,6 +73,17 @@ export default function TabLayout() {
           ),
         }}
       />
+      <Tabs.Screen
+        name="archive"
+        options={{
+          title: 'Archive',
+          tabBarIcon: ({
+            color,
+          }: Parameters<NonNullable<BottomTabNavigationOptions['tabBarIcon']>>[0]) => (
+            <IconSymbol size={28} name="archivebox.fill" color={color} />
+          ),
+        }}
+      />
     </Tabs>
   );
 }

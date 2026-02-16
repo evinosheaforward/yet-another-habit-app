@@ -23,7 +23,7 @@ function isActivityPeriod(v: unknown): v is ActivityPeriod {
 }
 
 router.get('/activities', async (req: Request, res: Response) => {
-  const { userId, period } = req.query;
+  const { userId, period, archived } = req.query;
 
   if (typeof userId !== 'string' || userId.length === 0) {
     return res.status(400).json({ error: 'userId is required' });
@@ -37,7 +37,8 @@ router.get('/activities', async (req: Request, res: Response) => {
   if (!authedUid) return res.status(401).json({ error: 'Not authenticated' });
   if (userId !== authedUid) return res.status(403).json({ error: 'Cannot query another user' });
 
-  const activities = await getActivitiesForUser(userId, period);
+  const isArchived = archived === 'true';
+  const activities = await getActivitiesForUser(userId, period, isArchived);
   return res.json({ activities });
 });
 
@@ -88,7 +89,7 @@ router.put('/activities/:activityId', async (req: Request, res: Response) => {
   if (!authedUid) return res.status(401).json({ error: 'Not authenticated' });
 
   const { activityId } = req.params;
-  const { title, description, goalCount, stackedActivityId } = req.body ?? {};
+  const { title, description, goalCount, stackedActivityId, archived } = req.body ?? {};
 
   if (title !== undefined && (typeof title !== 'string' || title.trim().length === 0)) {
     return res.status(400).json({ error: 'title must be a non-empty string' });
@@ -129,11 +130,13 @@ router.put('/activities/:activityId', async (req: Request, res: Response) => {
     description?: string;
     goalCount?: number;
     stackedActivityId?: string | null;
+    archived?: boolean;
   } = {};
   if (title !== undefined) updates.title = title.trim();
   if (description !== undefined) updates.description = description;
   if (goalCount !== undefined) updates.goalCount = Math.floor(Number(goalCount));
   if (stackedActivityId !== undefined) updates.stackedActivityId = stackedActivityId;
+  if (typeof archived === 'boolean') updates.archived = archived;
 
   if (Object.keys(updates).length === 0) {
     return res.status(400).json({ error: 'At least one field must be provided' });

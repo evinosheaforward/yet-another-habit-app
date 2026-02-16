@@ -1,4 +1,4 @@
-# Calendar history
+# Detailed + Calendar history
 
 We want to add a more detailed history page to our habit app - this is where the real info lies.
 

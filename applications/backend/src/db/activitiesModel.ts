@@ -41,7 +41,8 @@ function fmtDate(y: number, m: number, d: number): string {
 
 export async function getActivitiesForUser(
   userId: string,
-  period: ActivityPeriod
+  period: ActivityPeriod,
+  archived: boolean = false
 ): Promise<Activity[]> {
   const { dayEndOffsetMinutes } = await getUserConfig(userId);
   const startDate = computePeriodStart(period, new Date(), dayEndOffsetMinutes);
@@ -63,9 +64,10 @@ export async function getActivitiesForUser(
       "activities.period",
       "activities.stacked_activity_id",
       "stacked.title as stacked_activity_title",
+      "activities.archived",
       db.raw("COALESCE(activities_history.count, 0) as count"),
     ])
-    .where({ "activities.user_id": userId, "activities.period": period })
+    .where({ "activities.user_id": userId, "activities.period": period, "activities.archived": archived })
     .orderBy("activities.title", "asc");
 
   return rows.map(
@@ -78,6 +80,7 @@ export async function getActivitiesForUser(
       count: number;
       stacked_activity_id: string | null;
       stacked_activity_title: string | null;
+      archived: boolean | number;
     }) => {
       const goalCount = Number(r.goal_count);
       const count = Number(r.count);
@@ -92,6 +95,7 @@ export async function getActivitiesForUser(
         period: r.period,
         stackedActivityId: r.stacked_activity_id ?? null,
         stackedActivityTitle: r.stacked_activity_title ?? null,
+        archived: !!r.archived,
       };
     }
   );
@@ -147,6 +151,7 @@ export async function createActivityForUser(
     period: row.period,
     stackedActivityId: row.stacked_activity_id ?? null,
     stackedActivityTitle: row.stacked_activity_title ?? null,
+    archived: false,
   };
 }
 
@@ -273,7 +278,7 @@ export async function getActivityHistory(
 export async function updateActivityForUser(
   activityId: string,
   userId: string,
-  updates: { title?: string; description?: string; goalCount?: number; stackedActivityId?: string | null }
+  updates: { title?: string; description?: string; goalCount?: number; stackedActivityId?: string | null; archived?: boolean }
 ): Promise<Activity | null> {
   const existing = await db("activities")
     .where({ id: activityId, user_id: userId })
@@ -286,6 +291,7 @@ export async function updateActivityForUser(
   if (updates.description !== undefined) patch.description = updates.description;
   if (updates.goalCount !== undefined) patch.goal_count = updates.goalCount;
   if (updates.stackedActivityId !== undefined) patch.stacked_activity_id = updates.stackedActivityId;
+  if (updates.archived !== undefined) patch.archived = updates.archived;
 
   if (Object.keys(patch).length > 0) {
     await db("activities").where({ id: activityId, user_id: userId }).update(patch);
@@ -310,6 +316,7 @@ export async function updateActivityForUser(
       "activities.period",
       "activities.stacked_activity_id",
       "stacked.title as stacked_activity_title",
+      "activities.archived",
       db.raw("COALESCE(activities_history.count, 0) as count"),
     ])
     .where({ "activities.id": activityId })
@@ -332,6 +339,7 @@ export async function updateActivityForUser(
     period: row.period,
     stackedActivityId: row.stacked_activity_id ?? null,
     stackedActivityTitle: row.stacked_activity_title ?? null,
+    archived: !!row.archived,
   };
 }
 

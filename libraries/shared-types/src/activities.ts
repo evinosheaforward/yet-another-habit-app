@@ -14,6 +14,7 @@ export interface Activity {
   period: ActivityPeriod;
   stackedActivityId: string | null;
   stackedActivityTitle: string | null;
+  archived: boolean;
 }
 
 export interface ActivityHistoryEntry {

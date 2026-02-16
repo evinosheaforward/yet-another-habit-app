@@ -8,7 +8,7 @@ import { getApiBaseUrl } from '@/api/baseUrl';
 import { auth } from '@/auth/firebaseClient';
 
 type CacheEntry = { data: Activity[]; fetchedAt: number };
-const cache: Partial<Record<ActivityPeriod, CacheEntry>> = {};
+const cache: Partial<Record<string, CacheEntry>> = {};
 const TTL_MS = 60_000; // 1 minute
 
 type AuthedContext = {
@@ -74,24 +74,33 @@ async function apiFetch<T>(
 function invalidateActivitiesCache(period?: ActivityPeriod) {
   if (period) {
     delete cache[period];
+    delete cache[`archived:${period}`];
     return;
   }
-  for (const key of Object.keys(cache) as ActivityPeriod[]) delete cache[key];
+  for (const key of Object.keys(cache)) delete cache[key];
 }
 
-export async function getActivities(period: ActivityPeriod, opts?: { force?: boolean }) {
+export async function getActivities(
+  period: ActivityPeriod,
+  opts?: { force?: boolean; archived?: boolean },
+) {
+  const archived = opts?.archived ?? false;
+  const cacheKey = archived ? `archived:${period}` : period;
   const now = Date.now();
-  const hit = cache[period];
+  const hit = cache[cacheKey];
   if (!opts?.force && hit && now - hit.fetchedAt < TTL_MS) return hit.data;
 
   const { uid, token } = await getAuthedContext();
 
+  const query: Record<string, string> = { period, userId: uid };
+  if (archived) query.archived = 'true';
+
   const json = await apiFetch<{ activities: Activity[] }>('GET', '/activities', {
     token,
-    query: { period, userId: uid },
+    query,
   });
 
-  cache[period] = { data: json.activities, fetchedAt: now };
+  cache[cacheKey] = { data: json.activities, fetchedAt: now };
   return json.activities;
 }
 
@@ -125,7 +134,13 @@ export async function createActivity(input: {
 
 export async function updateActivity(
   activityId: string,
-  input: { title?: string; description?: string; goalCount?: number; stackedActivityId?: string | null },
+  input: {
+    title?: string;
+    description?: string;
+    goalCount?: number;
+    stackedActivityId?: string | null;
+    archived?: boolean;
+  },
 ): Promise<Activity> {
   const { token } = await getAuthedContext();
 
@@ -136,6 +151,14 @@ export async function updateActivity(
 
   invalidateActivitiesCache();
   return json.activity;
+}
+
+export async function archiveActivity(activityId: string): Promise<Activity> {
+  return updateActivity(activityId, { archived: true });
+}
+
+export async function unarchiveActivity(activityId: string): Promise<Activity> {
+  return updateActivity(activityId, { archived: false });
 }
 
 export async function getActivityHistory(
