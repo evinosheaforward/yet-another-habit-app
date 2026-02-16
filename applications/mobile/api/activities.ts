@@ -110,6 +110,8 @@ export async function createActivity(input: {
   period: ActivityPeriod;
   goalCount?: number;
   stackedActivityId?: string | null;
+  task?: boolean;
+  archiveTask?: boolean;
 }): Promise<Activity> {
   const title = input.title.trim();
   if (!title) throw new Error('Title is required.');
@@ -124,6 +126,8 @@ export async function createActivity(input: {
       period: input.period,
       goalCount: input.goalCount ?? 1,
       stackedActivityId: input.stackedActivityId ?? undefined,
+      task: input.task || undefined,
+      archiveTask: input.archiveTask || undefined,
       userId: uid,
     },
   });

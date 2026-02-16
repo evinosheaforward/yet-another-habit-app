@@ -11,7 +11,13 @@ import {
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import * as Haptics from 'expo-haptics';
-import { createActivity, getActivities, debouncedUpdateActivityCount } from '@/api/activities';
+import {
+  createActivity,
+  getActivities,
+  debouncedUpdateActivityCount,
+  deleteActivity,
+  archiveActivity,
+} from '@/api/activities';
 
 import { Collapsible } from '@/components/ui/collapsible';
 import { ThemedText } from '@/components/themed-text';
@@ -35,6 +41,8 @@ export default function ActivitiesScreen() {
   const [newGoalCount, setNewGoalCount] = useState('');
   const [newStackedActivityId, setNewStackedActivityId] = useState<string | null>(null);
   const [showCreateStackPicker, setShowCreateStackPicker] = useState(false);
+  const [isTask, setIsTask] = useState(false);
+  const [archiveTask, setArchiveTask] = useState(false);
   const [saving, setSaving] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
   const [fetchError, setFetchError] = useState<string | null>(null);
@@ -58,15 +66,18 @@ export default function ActivitiesScreen() {
       return;
     }
 
-    const rawGoal = newGoalCount.trim();
-    if (rawGoal === '' || !/^\d+$/.test(rawGoal)) {
-      setCreateError('Goal count must be a positive whole number.');
-      return;
-    }
-    const goalCount = Number(rawGoal);
-    if (goalCount < 1) {
-      setCreateError('Goal count must be at least 1.');
-      return;
+    let goalCount = 1;
+    if (!isTask) {
+      const rawGoal = newGoalCount.trim();
+      if (rawGoal === '' || !/^\d+$/.test(rawGoal)) {
+        setCreateError('Goal count must be a positive whole number.');
+        return;
+      }
+      goalCount = Number(rawGoal);
+      if (goalCount < 1) {
+        setCreateError('Goal count must be at least 1.');
+        return;
+      }
     }
 
     try {
@@ -77,6 +88,8 @@ export default function ActivitiesScreen() {
         period,
         goalCount,
         stackedActivityId: newStackedActivityId,
+        task: isTask || undefined,
+        archiveTask: isTask && archiveTask ? true : undefined,
       });
 
       setCreateOpen(false);
@@ -85,6 +98,8 @@ export default function ActivitiesScreen() {
       setNewGoalCount('');
       setNewStackedActivityId(null);
       setShowCreateStackPicker(false);
+      setIsTask(false);
+      setArchiveTask(false);
       await refresh();
     } catch (e: any) {
       setCreateError(e?.message ?? 'Failed to create activity.');
@@ -126,6 +141,8 @@ export default function ActivitiesScreen() {
   }
 
   function handleDelta(activityId: string, delta: number) {
+    const activity = activities.find((a) => a.id === activityId);
+
     // Optimistic update
     setActivities((prev) =>
       prev.map((a) => {
@@ -136,6 +153,55 @@ export default function ActivitiesScreen() {
         return { ...a, count: newCount, completionPercent };
       }),
     );
+
+    // For tasks: auto-remove on completion
+    if (activity?.task && delta > 0 && activity.count + delta >= activity.goalCount) {
+      // Optimistically remove from list
+      setActivities((prev) => prev.filter((a) => a.id !== activityId));
+
+      debouncedUpdateActivityCount(
+        activityId,
+        delta,
+        async () => {
+          try {
+            if (activity.archiveTask) {
+              await archiveActivity(activityId);
+            } else {
+              await deleteActivity(activityId);
+            }
+          } catch {
+            // Best effort — refresh will reconcile
+          }
+          refresh();
+
+          // Navigate to stacked activity
+          if (activity.stackedActivityId) {
+            const stacked = activities.find((a) => a.id === activity.stackedActivityId);
+            if (stacked) {
+              router.push({
+                pathname: '/activity/[id]',
+                params: {
+                  id: stacked.id,
+                  title: stacked.title,
+                  description: stacked.description,
+                  goalCount: String(stacked.goalCount),
+                  count: String(stacked.count),
+                  completionPercent: String(stacked.completionPercent),
+                  period: stacked.period,
+                  stackedActivityId: stacked.stackedActivityId ?? '',
+                  stackedActivityTitle: stacked.stackedActivityTitle ?? '',
+                  showStackPrompt: '1',
+                },
+              });
+            }
+          }
+        },
+        () => {
+          refresh();
+        },
+      );
+      return;
+    }
 
     debouncedUpdateActivityCount(
       activityId,
@@ -263,15 +329,80 @@ export default function ActivitiesScreen() {
                 className="mt-2 min-h-[90px] rounded-[12px] border border-black/10 bg-black/5 px-3 py-2.5 text-[15px] text-neutral-900 dark:border-white/10 dark:bg-white/10 dark:text-white"
               />
 
-              <TextInput
-                value={newGoalCount}
-                onChangeText={setNewGoalCount}
-                placeholder="Goal count (times per period)"
-                placeholderTextColor="#8E8E93"
-                editable={!saving}
-                keyboardType="number-pad"
-                className="mt-2 rounded-[12px] border border-black/10 bg-black/5 px-3 py-2.5 text-[15px] text-neutral-900 dark:border-white/10 dark:bg-white/10 dark:text-white"
-              />
+              {!isTask ? (
+                <TextInput
+                  value={newGoalCount}
+                  onChangeText={setNewGoalCount}
+                  placeholder="Goal count (times per period)"
+                  placeholderTextColor="#8E8E93"
+                  editable={!saving}
+                  keyboardType="number-pad"
+                  className="mt-2 rounded-[12px] border border-black/10 bg-black/5 px-3 py-2.5 text-[15px] text-neutral-900 dark:border-white/10 dark:bg-white/10 dark:text-white"
+                />
+              ) : null}
+
+              <View>
+                <Pressable
+                  onPress={() => {
+                    setIsTask((v) => !v);
+                    if (!isTask) setArchiveTask(false);
+                  }}
+                  disabled={saving}
+                  className="mt-2 flex-row items-center justify-between rounded-[12px] border border-black/10 bg-black/5 px-3 py-2.5 dark:border-white/10 dark:bg-white/10"
+                >
+                  <ThemedText className="text-[15px] text-neutral-900 dark:text-white">
+                    One-off task
+                  </ThemedText>
+                  <View
+                    className={[
+                      'h-6 w-6 items-center justify-center rounded-full',
+                      isTask
+                        ? 'bg-emerald-600 dark:bg-emerald-500'
+                        : 'border border-black/20 bg-transparent dark:border-white/20',
+                    ].join(' ')}
+                  >
+                    {isTask ? (
+                      <ThemedText className="text-[13px] font-bold text-white">
+                        {'\u2713'}
+                      </ThemedText>
+                    ) : null}
+                  </View>
+                </Pressable>
+                <ThemedText
+                  className={[
+                    'mt-1 px-1 text-[12px] leading-4 text-neutral-700 dark:text-neutral-300',
+                    isTask ? 'font-semibold opacity-70' : 'opacity-50',
+                  ].join(' ')}
+                >
+                  (will be deleted/archived when complete)
+                </ThemedText>
+              </View>
+
+              {isTask ? (
+                <Pressable
+                  onPress={() => setArchiveTask((v) => !v)}
+                  disabled={saving}
+                  className="mt-2 flex-row items-center justify-between rounded-[12px] border border-black/10 bg-black/5 px-3 py-2.5 dark:border-white/10 dark:bg-white/10"
+                >
+                  <ThemedText className="text-[15px] text-neutral-900 dark:text-white">
+                    Archive instead of delete?
+                  </ThemedText>
+                  <View
+                    className={[
+                      'h-6 w-6 items-center justify-center rounded-full',
+                      archiveTask
+                        ? 'bg-emerald-600 dark:bg-emerald-500'
+                        : 'border border-black/20 bg-transparent dark:border-white/20',
+                    ].join(' ')}
+                  >
+                    {archiveTask ? (
+                      <ThemedText className="text-[13px] font-bold text-white">
+                        {'\u2713'}
+                      </ThemedText>
+                    ) : null}
+                  </View>
+                </Pressable>
+              ) : null}
 
               <ThemedText className="mb-1 mt-3 text-[13px] font-semibold uppercase tracking-wide opacity-60 text-neutral-700 dark:text-neutral-300">
                 Stack with (optional)
@@ -406,6 +537,7 @@ export default function ActivitiesScreen() {
             progressPct={item.completionPercent}
             isOpen={openId === item.id}
             onToggle={() => toggleActivity(item.id)}
+            badge={item.task ? 'Task' : undefined}
           >
             {item.description ? (
               <ThemedText className="opacity-85 leading-5 text-neutral-700 dark:text-neutral-300">
@@ -428,39 +560,37 @@ export default function ActivitiesScreen() {
               className="mt-2.5 flex-row items-center justify-center gap-2 rounded-[10px] bg-emerald-600 px-4 py-2.5 dark:bg-emerald-500"
             >
               <ThemedText className="text-[14px] font-semibold text-white">
-                {item.completionPercent >= 100
-                  ? '\u2713'
-                  : `${item.count} / ${item.goalCount}`}
+                {item.completionPercent >= 100 ? '\u2713' : `${item.count} / ${item.goalCount}`}
               </ThemedText>
-              <ThemedText className="text-[14px] font-semibold text-white">
-                Complete
-              </ThemedText>
+              <ThemedText className="text-[14px] font-semibold text-white">Complete</ThemedText>
             </Pressable>
 
-            <Pressable
-              onPress={() =>
-                router.push({
-                  pathname: '/activity/[id]',
-                  params: {
-                    id: item.id,
-                    title: item.title,
-                    description: item.description,
-                    goalCount: String(item.goalCount),
-                    count: String(item.count),
-                    completionPercent: String(item.completionPercent),
-                    period: item.period,
-                    stackedActivityId: item.stackedActivityId ?? '',
-                    stackedActivityTitle: item.stackedActivityTitle ?? '',
-                  },
-                })
-              }
-              accessibilityRole="button"
-              className="mt-3 items-center rounded-[10px] border border-black/10 bg-black/5 px-3 py-2 dark:border-white/10 dark:bg-white/10"
-            >
-              <ThemedText className="text-[13px] font-semibold text-neutral-900 dark:text-white">
-                Details
-              </ThemedText>
-            </Pressable>
+            {!item.task ? (
+              <Pressable
+                onPress={() =>
+                  router.push({
+                    pathname: '/activity/[id]',
+                    params: {
+                      id: item.id,
+                      title: item.title,
+                      description: item.description,
+                      goalCount: String(item.goalCount),
+                      count: String(item.count),
+                      completionPercent: String(item.completionPercent),
+                      period: item.period,
+                      stackedActivityId: item.stackedActivityId ?? '',
+                      stackedActivityTitle: item.stackedActivityTitle ?? '',
+                    },
+                  })
+                }
+                accessibilityRole="button"
+                className="mt-3 items-center rounded-[10px] border border-black/10 bg-black/5 px-3 py-2 dark:border-white/10 dark:bg-white/10"
+              >
+                <ThemedText className="text-[13px] font-semibold text-neutral-900 dark:text-white">
+                  Details
+                </ThemedText>
+              </Pressable>
+            ) : null}
           </Collapsible>
         )}
       />

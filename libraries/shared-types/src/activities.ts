@@ -15,6 +15,8 @@ export interface Activity {
   stackedActivityId: string | null;
   stackedActivityTitle: string | null;
   archived: boolean;
+  task: boolean;
+  archiveTask: boolean;
 }
 
 export interface ActivityHistoryEntry {

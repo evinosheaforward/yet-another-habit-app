@@ -47,7 +47,8 @@ router.post('/activities', async (req: Request, res: Response) => {
   const authedUid = req.auth?.uid;
   if (!authedUid) return res.status(401).json({ error: 'Not authenticated' });
 
-  const { title, description, period, goalCount, stackedActivityId } = req.body ?? {};
+  const { title, description, period, goalCount, stackedActivityId, task, archiveTask } =
+    req.body ?? {};
 
   if (typeof title !== 'string' || title.trim().length === 0) {
     return res.status(400).json({ error: 'title is required' });
@@ -61,7 +62,9 @@ router.post('/activities', async (req: Request, res: Response) => {
     return res.status(400).json({ error: 'period must be daily|weekly|monthly' });
   }
 
-  const parsedGoalCount = goalCount != null ? Math.floor(Number(goalCount)) : 1;
+  const isTask = task === true;
+
+  const parsedGoalCount = isTask ? 1 : (goalCount != null ? Math.floor(Number(goalCount)) : 1);
   if (!Number.isFinite(parsedGoalCount) || parsedGoalCount < 1) {
     return res.status(400).json({ error: 'goalCount must be a positive integer' });
   }
@@ -79,6 +82,8 @@ router.post('/activities', async (req: Request, res: Response) => {
     period,
     goalCount: parsedGoalCount,
     stackedActivityId: stackedActivityId ?? null,
+    task: isTask,
+    archiveTask: isTask && archiveTask === true,
   });
 
   return res.status(201).json({ activity });

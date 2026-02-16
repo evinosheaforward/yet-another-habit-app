@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { FlatList, Pressable, View } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
-import { getActivities, unarchiveActivity } from '@/api/activities';
+import { deleteActivity, getActivities, unarchiveActivity } from '@/api/activities';
 
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -19,6 +19,7 @@ export default function ArchiveScreen() {
   const [activities, setActivities] = useState<Activity[]>([]);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [unarchivingId, setUnarchivingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     try {
@@ -63,6 +64,18 @@ export default function ArchiveScreen() {
       setFetchError('Failed to unarchive activity.');
     } finally {
       setUnarchivingId(null);
+    }
+  }
+
+  async function handleDelete(id: string) {
+    try {
+      setDeletingId(id);
+      await deleteActivity(id);
+      await refresh();
+    } catch {
+      setFetchError('Failed to delete task.');
+    } finally {
+      setDeletingId(null);
     }
   }
 
@@ -137,12 +150,19 @@ export default function ArchiveScreen() {
             <ThemedText className="text-[16px] font-semibold text-neutral-900 dark:text-white">
               {item.title}
             </ThemedText>
-            <View className="mt-1 flex-row">
+            <View className="mt-1 flex-row gap-1.5">
               <View className="rounded-full bg-black/10 px-2.5 py-0.5 dark:bg-white/10">
                 <ThemedText className="text-[12px] font-semibold capitalize text-neutral-900 dark:text-white">
                   {item.period}
                 </ThemedText>
               </View>
+              {item.task ? (
+                <View className="rounded-full bg-emerald-600/15 px-2.5 py-0.5 dark:bg-emerald-500/20">
+                  <ThemedText className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">
+                    Task
+                  </ThemedText>
+                </View>
+              ) : null}
             </View>
 
             <View className="mt-3 flex-row gap-2.5">
@@ -159,31 +179,48 @@ export default function ArchiveScreen() {
                 </ThemedText>
               </Pressable>
 
-              <Pressable
-                onPress={() =>
-                  router.push({
-                    pathname: '/activity/[id]',
-                    params: {
-                      id: item.id,
-                      title: item.title,
-                      description: item.description,
-                      goalCount: String(item.goalCount),
-                      count: String(item.count),
-                      completionPercent: String(item.completionPercent),
-                      period: item.period,
-                      stackedActivityId: item.stackedActivityId ?? '',
-                      stackedActivityTitle: item.stackedActivityTitle ?? '',
-                      archived: 'true',
-                    },
-                  })
-                }
-                accessibilityRole="button"
-                className="flex-1 items-center rounded-[10px] border border-black/10 bg-black/5 px-3 py-2 dark:border-white/10 dark:bg-white/10"
-              >
-                <ThemedText className="text-[13px] font-semibold text-neutral-900 dark:text-white">
-                  Details
-                </ThemedText>
-              </Pressable>
+              {item.task ? (
+                <Pressable
+                  onPress={() => handleDelete(item.id)}
+                  disabled={deletingId === item.id}
+                  className={[
+                    'flex-1 items-center rounded-[10px] border border-red-500/20 bg-red-500/10 px-3 py-2',
+                    deletingId === item.id ? 'opacity-55' : 'opacity-100',
+                  ].join(' ')}
+                >
+                  <ThemedText className="text-[13px] font-semibold text-red-600 dark:text-red-400">
+                    {deletingId === item.id ? 'Deleting...' : 'Delete'}
+                  </ThemedText>
+                </Pressable>
+              ) : null}
+
+              {!item.task ? (
+                <Pressable
+                  onPress={() =>
+                    router.push({
+                      pathname: '/activity/[id]',
+                      params: {
+                        id: item.id,
+                        title: item.title,
+                        description: item.description,
+                        goalCount: String(item.goalCount),
+                        count: String(item.count),
+                        completionPercent: String(item.completionPercent),
+                        period: item.period,
+                        stackedActivityId: item.stackedActivityId ?? '',
+                        stackedActivityTitle: item.stackedActivityTitle ?? '',
+                        archived: 'true',
+                      },
+                    })
+                  }
+                  accessibilityRole="button"
+                  className="flex-1 items-center rounded-[10px] border border-black/10 bg-black/5 px-3 py-2 dark:border-white/10 dark:bg-white/10"
+                >
+                  <ThemedText className="text-[13px] font-semibold text-neutral-900 dark:text-white">
+                    Details
+                  </ThemedText>
+                </Pressable>
+              ) : null}
             </View>
           </View>
         )}
