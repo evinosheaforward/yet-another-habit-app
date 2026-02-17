@@ -141,9 +141,11 @@ export async function getUserConfig(): Promise<UserConfig> {
   return apiFetch<UserConfig>('GET', '/user-config', { token });
 }
 
-export async function updateUserConfig(config: UserConfig): Promise<UserConfig> {
+export async function updateUserConfig(config: Partial<UserConfig>): Promise<UserConfig> {
+  const current = await getUserConfig();
+  const merged = { ...current, ...config };
   const { token } = await getAuthedContext();
-  return apiFetch<UserConfig>('PUT', '/user-config', { token, body: config });
+  return apiFetch<UserConfig>('PUT', '/user-config', { token, body: merged });
 }
 
 // --- Debounced activity count updates ---

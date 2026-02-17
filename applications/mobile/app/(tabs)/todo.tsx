@@ -15,6 +15,8 @@ import DraggableFlatList, {
   RenderItemParams,
 } from 'react-native-draggable-flatlist';
 
+import { useRouter } from 'expo-router';
+
 import {
   getActivities,
   createActivity,
@@ -23,10 +25,10 @@ import {
   deleteActivity,
 } from '@/api/activities';
 import {
-  getTodoItems,
   addTodoItem,
   removeTodoItem,
   reorderTodoItems,
+  populateTodoItems,
 } from '@/api/todoItems';
 
 import { ThemedText } from '@/components/themed-text';
@@ -51,6 +53,7 @@ const PERIOD_TEXT_COLORS: Record<string, string> = {
 };
 
 export default function TodoScreen() {
+  const router = useRouter();
   const [items, setItems] = useState<TodoItem[]>([]);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [allActivities, setAllActivities] = useState<Activity[]>([]);
@@ -64,7 +67,7 @@ export default function TodoScreen() {
   const refresh = useCallback(async () => {
     try {
       setFetchError(null);
-      const data = await getTodoItems();
+      const data = await populateTodoItems();
       setItems(data);
     } catch {
       setFetchError('Failed to load todo list.');
@@ -255,15 +258,26 @@ export default function TodoScreen() {
           Todo List
         </ThemedText>
 
-        <Pressable
-          onPress={openPicker}
-          accessibilityRole="button"
-          className="rounded-full border border-black/10 bg-black/10 px-3 py-2 dark:border-white/10 dark:bg-white/10"
-        >
-          <ThemedText className="text-[13px] font-semibold text-neutral-900 dark:text-white">
-            + Add
-          </ThemedText>
-        </Pressable>
+        <View className="flex-row items-center gap-2">
+          <Pressable
+            onPress={() => router.push('/todo-settings')}
+            accessibilityRole="button"
+            className="rounded-full border border-black/10 bg-black/10 px-3 py-2 dark:border-white/10 dark:bg-white/10"
+          >
+            <ThemedText className="text-[13px] font-semibold text-neutral-900 dark:text-white">
+              Schedule
+            </ThemedText>
+          </Pressable>
+          <Pressable
+            onPress={openPicker}
+            accessibilityRole="button"
+            className="rounded-full border border-black/10 bg-black/10 px-3 py-2 dark:border-white/10 dark:bg-white/10"
+          >
+            <ThemedText className="text-[13px] font-semibold text-neutral-900 dark:text-white">
+              + Add
+            </ThemedText>
+          </Pressable>
+        </View>
       </View>
 
       {fetchError ? (

@@ -28,3 +28,11 @@ export async function reorderTodoItems(orderedIds: string[]): Promise<void> {
     body: { orderedIds },
   });
 }
+
+export async function populateTodoItems(): Promise<TodoItem[]> {
+  const { token } = await getAuthedContext();
+  const json = await apiFetch<{ todoItems: TodoItem[] }>('POST', '/todo-items/populate', {
+    token,
+  });
+  return json.todoItems;
+}
