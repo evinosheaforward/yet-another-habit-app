@@ -36,6 +36,15 @@ export interface ActivityHistoryEntry {
 
 export interface UserConfig {
   dayEndOffsetMinutes: number;
+  clearTodoOnNewDay: boolean;
+}
+export interface TodoDayConfig {
+  id: string;
+  activityId: string;
+  activityTitle: string;
+  activityPeriod: ActivityPeriod;
+  dayOfWeek: number;
+  sortOrder: number;
 }
 
 export function isActivityPeriod(value: unknown): value is ActivityPeriod {
