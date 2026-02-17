@@ -4,72 +4,11 @@ import type {
   ActivityPeriod,
   UserConfig,
 } from '@yet-another-habit-app/shared-types';
-import { getApiBaseUrl } from '@/api/baseUrl';
-import { auth } from '@/auth/firebaseClient';
+import { getAuthedContext, apiFetch } from '@/api/client';
 
 type CacheEntry = { data: Activity[]; fetchedAt: number };
 const cache: Partial<Record<string, CacheEntry>> = {};
 const TTL_MS = 60_000; // 1 minute
-
-type AuthedContext = {
-  uid: string;
-  token: string;
-};
-
-async function getAuthedContext(): Promise<AuthedContext> {
-  const user = auth.currentUser;
-  if (!user) throw new Error('Not authenticated');
-  // Force refresh so backend sees the latest auth state/claims
-  const token = await user.getIdToken(true);
-  return { uid: user.uid, token };
-}
-
-function buildUrl(path: string, params?: Record<string, string>) {
-  const base = getApiBaseUrl().replace(/\/$/, '');
-  const url = new URL(`${base}${path}`);
-  if (params) {
-    for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
-  }
-  return url.toString();
-}
-
-async function apiFetch<T>(
-  method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE',
-  path: string,
-  options?: {
-    query?: Record<string, string>;
-    body?: unknown;
-    token?: string;
-  },
-): Promise<T> {
-  const url = buildUrl(path, options?.query);
-
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 10_000);
-
-  let resp: Response;
-  try {
-    resp = await fetch(url, {
-      method,
-      headers: {
-        Authorization: `Bearer ${options?.token ?? ''}`,
-        ...(options?.body ? { 'Content-Type': 'application/json' } : {}),
-      },
-      body: options?.body ? JSON.stringify(options.body) : undefined,
-      signal: controller.signal,
-    });
-  } finally {
-    clearTimeout(timer);
-  }
-
-  if (!resp.ok) {
-    // Prefer backend-provided message; fall back to status text
-    const text = await resp.text().catch(() => '');
-    throw new Error(text || `Request failed (${resp.status})`);
-  }
-
-  return (await resp.json()) as T;
-}
 
 function invalidateActivitiesCache(period?: ActivityPeriod) {
   if (period) {

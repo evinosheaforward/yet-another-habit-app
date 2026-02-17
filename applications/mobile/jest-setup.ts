@@ -113,6 +113,51 @@ jest.mock('@react-native-firebase/auth', () => ({
 }));
 
 // ---------------------------------------------------------------------------
+// react-native-draggable-flatlist – mock for todo list drag-and-drop
+// ---------------------------------------------------------------------------
+jest.mock('react-native-draggable-flatlist', () => {
+  const { FlatList } = require('react-native');
+  return {
+    __esModule: true,
+    default: FlatList,
+    ScaleDecorator: ({ children }: { children: React.ReactNode }) => children,
+  };
+});
+
+// ---------------------------------------------------------------------------
+// react-native-gesture-handler – mock GestureHandlerRootView
+// ---------------------------------------------------------------------------
+jest.mock('react-native-gesture-handler', () => {
+  const { View } = require('react-native');
+  return {
+    GestureHandlerRootView: View,
+    Swipeable: View,
+    DrawerLayout: View,
+    State: {},
+    PanGestureHandler: View,
+    TapGestureHandler: View,
+    FlingGestureHandler: View,
+    ForceTouchGestureHandler: View,
+    LongPressGestureHandler: View,
+    NativeViewGestureHandler: View,
+    PinchGestureHandler: View,
+    RotationGestureHandler: View,
+    ScrollView: View,
+    Slider: View,
+    Switch: View,
+    TextInput: View,
+    ToolbarAndroid: View,
+    ViewPagerAndroid: View,
+    DrawerLayoutAndroid: View,
+    WebView: View,
+    NativeViewGestureHandlerComponent: View,
+    FlatList: View,
+    gestureHandlerRootHOC: (component: unknown) => component,
+    Directions: {},
+  };
+});
+
+// ---------------------------------------------------------------------------
 // expo-symbols – stub types/components for icon-symbol imports
 // ---------------------------------------------------------------------------
 jest.mock('expo-symbols', () => ({

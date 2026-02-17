@@ -19,6 +19,16 @@ export interface Activity {
   archiveTask: boolean;
 }
 
+export interface TodoItem {
+  id: string;
+  activityId: string;
+  activityTitle: string;
+  activityPeriod: ActivityPeriod;
+  activityTask: boolean;
+  activityArchiveTask: boolean;
+  sortOrder: number;
+}
+
 export interface ActivityHistoryEntry {
   startDate: string; // YYYY-MM-DD
   count: number;

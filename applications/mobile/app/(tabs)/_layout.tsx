@@ -74,6 +74,17 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="todo"
+        options={{
+          title: 'Todo',
+          tabBarIcon: ({
+            color,
+          }: Parameters<NonNullable<BottomTabNavigationOptions['tabBarIcon']>>[0]) => (
+            <IconSymbol size={28} name="list.bullet" color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="archive"
         options={{
           title: 'Archive',

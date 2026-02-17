@@ -311,6 +311,11 @@ export async function updateActivityForUser(
     await db("activities").where({ id: activityId, user_id: userId }).update(patch);
   }
 
+  // When archiving, remove any todo items referencing this activity
+  if (updates.archived === true) {
+    await db("todo_items").where({ activity_id: activityId }).del();
+  }
+
   // When unarchiving a task, reset its history so it comes back incomplete
   if (updates.archived === false && !!existing.task && !!existing.archived) {
     await db("activities_history").where({ activity_id: activityId }).del();
@@ -400,6 +405,9 @@ export async function deleteActivityForUser(
 
   if (!activity) return false;
 
+  // Delete todo items referencing this activity
+  await db("todo_items").where({ activity_id: activityId }).del();
+
   // Delete history rows (FK has no CASCADE)
   await db("activities_history").where({ activity_id: activityId }).del();
 
@@ -418,6 +426,8 @@ export async function deleteAllDataForUser(userId: string): Promise<void> {
   const activityIds = await db("activities")
     .where({ user_id: userId })
     .pluck("id");
+
+  await db("todo_items").where({ user_id: userId }).del();
 
   if (activityIds.length > 0) {
     await db("activities_history").whereIn("activity_id", activityIds).del();
