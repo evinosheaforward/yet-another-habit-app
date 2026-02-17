@@ -242,7 +242,7 @@ router.put('/user-config', async (req: Request, res: Response) => {
   const authedUid = req.auth?.uid;
   if (!authedUid) return res.status(401).json({ error: 'Not authenticated' });
 
-  const { dayEndOffsetMinutes } = req.body ?? {};
+  const { dayEndOffsetMinutes, clearTodoOnNewDay } = req.body ?? {};
 
   if (
     typeof dayEndOffsetMinutes !== 'number' ||
@@ -255,7 +255,18 @@ router.put('/user-config', async (req: Request, res: Response) => {
       .json({ error: 'dayEndOffsetMinutes must be an integer between 0 and 1439' });
   }
 
-  const config = await upsertUserConfig(authedUid, { dayEndOffsetMinutes });
+  if (clearTodoOnNewDay !== undefined && typeof clearTodoOnNewDay !== 'boolean') {
+    return res.status(400).json({ error: 'clearTodoOnNewDay must be a boolean' });
+  }
+
+  const patch: { dayEndOffsetMinutes: number; clearTodoOnNewDay?: boolean } = {
+    dayEndOffsetMinutes,
+  };
+  if (clearTodoOnNewDay !== undefined) {
+    patch.clearTodoOnNewDay = clearTodoOnNewDay;
+  }
+
+  const config = await upsertUserConfig(authedUid, patch);
   return res.json(config);
 });
 

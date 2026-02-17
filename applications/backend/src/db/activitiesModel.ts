@@ -1,6 +1,7 @@
 import type { Activity, ActivityHistoryEntry, ActivityPeriod } from "@yet-another-habit-app/shared-types";
 import { db } from "./knex.js";
 import { getUserConfig } from "./userConfigsModel.js";
+import { removeDayConfigsByActivityId, removeDayConfigsByUserId } from "./todoDayConfigsModel.js";
 import { randomUUID } from "crypto";
 
 /**
@@ -311,9 +312,10 @@ export async function updateActivityForUser(
     await db("activities").where({ id: activityId, user_id: userId }).update(patch);
   }
 
-  // When archiving, remove any todo items referencing this activity
+  // When archiving, remove any todo items and day configs referencing this activity
   if (updates.archived === true) {
     await db("todo_items").where({ activity_id: activityId }).del();
+    await removeDayConfigsByActivityId(activityId);
   }
 
   // When unarchiving a task, reset its history so it comes back incomplete
@@ -405,8 +407,9 @@ export async function deleteActivityForUser(
 
   if (!activity) return false;
 
-  // Delete todo items referencing this activity
+  // Delete todo items and day configs referencing this activity
   await db("todo_items").where({ activity_id: activityId }).del();
+  await removeDayConfigsByActivityId(activityId);
 
   // Delete history rows (FK has no CASCADE)
   await db("activities_history").where({ activity_id: activityId }).del();
@@ -428,6 +431,7 @@ export async function deleteAllDataForUser(userId: string): Promise<void> {
     .pluck("id");
 
   await db("todo_items").where({ user_id: userId }).del();
+  await removeDayConfigsByUserId(userId);
 
   if (activityIds.length > 0) {
     await db("activities_history").whereIn("activity_id", activityIds).del();
