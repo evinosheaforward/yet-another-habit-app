@@ -78,7 +78,7 @@ export default function ActivityDetailScreen() {
   const [stackedActivityTitle, setStackedActivityTitle] = useState<string | null>(
     params.stackedActivityTitle || null,
   );
-  const [samePeriodActivities, setSamePeriodActivities] = useState<Activity[]>([]);
+  const [allActivities, setAllActivities] = useState<Activity[]>([]);
   const [showStackPicker, setShowStackPicker] = useState(false);
   const [promptDismissed, setPromptDismissed] = useState(false);
 
@@ -98,21 +98,26 @@ export default function ActivityDetailScreen() {
     };
   }, [activityId]);
 
-  // Fetch same-period activities for the stack picker
+  // Fetch all activities for the stack picker (cross-period)
   useEffect(() => {
-    if (!params.period) return;
     let cancelled = false;
-    getActivities(params.period as ActivityPeriod)
-      .then((data) => {
+    Promise.all([
+      getActivities('daily' as ActivityPeriod),
+      getActivities('weekly' as ActivityPeriod),
+      getActivities('monthly' as ActivityPeriod),
+    ])
+      .then(([daily, weekly, monthly]) => {
         if (!cancelled) {
-          setSamePeriodActivities(data.filter((a) => a.id !== activityId));
+          setAllActivities(
+            [...daily, ...weekly, ...monthly].filter((a) => a.id !== activityId),
+          );
         }
       })
       .catch(() => {});
     return () => {
       cancelled = true;
     };
-  }, [activityId, params.period]);
+  }, [activityId]);
 
   function handleDelta(delta: number) {
     const newCount = Math.max(0, count + delta);
@@ -127,7 +132,7 @@ export default function ActivityDetailScreen() {
 
         // Navigate to stacked activity on increment
         if (delta > 0 && stackedActivityId) {
-          const stacked = samePeriodActivities.find((a) => a.id === stackedActivityId);
+          const stacked = allActivities.find((a) => a.id === stackedActivityId);
           if (stacked) {
             router.replace({
               pathname: '/activity/[id]',
@@ -408,7 +413,7 @@ export default function ActivityDetailScreen() {
                   None
                 </ThemedText>
               </Pressable>
-              {samePeriodActivities.map((a) => (
+              {allActivities.map((a) => (
                 <Pressable
                   key={a.id}
                   onPress={() => {
@@ -418,7 +423,7 @@ export default function ActivityDetailScreen() {
                     setSaved(false);
                   }}
                   className={[
-                    'mt-1 rounded-[10px] border px-3 py-2',
+                    'mt-1 flex-row items-center gap-1.5 rounded-[10px] border px-3 py-2',
                     stackedActivityId === a.id
                       ? 'border-emerald-500 bg-emerald-500/10'
                       : 'border-black/10 bg-black/5 dark:border-white/10 dark:bg-white/10',
@@ -427,6 +432,11 @@ export default function ActivityDetailScreen() {
                   <ThemedText className="text-[14px] text-neutral-900 dark:text-white">
                     {a.title}
                   </ThemedText>
+                  <View className="rounded-full bg-black/10 px-1.5 py-0.5 dark:bg-white/10">
+                    <ThemedText className="text-[10px] font-semibold capitalize text-neutral-600 dark:text-neutral-400">
+                      {a.period}
+                    </ThemedText>
+                  </View>
                 </Pressable>
               ))}
             </View>

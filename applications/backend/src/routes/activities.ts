@@ -72,7 +72,7 @@ router.post('/activities', async (req: Request, res: Response) => {
   }
 
   if (stackedActivityId != null && typeof stackedActivityId === 'string') {
-    const result = await validateStackTarget(stackedActivityId, authedUid, period);
+    const result = await validateStackTarget(stackedActivityId, authedUid);
     if (!result.valid) {
       return res.status(400).json({ error: result.error });
     }
@@ -116,13 +116,7 @@ router.put('/activities/:activityId', async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Cannot stack an activity with itself' });
     }
 
-    // Look up the activity to get its period for validation
-    const current = await db('activities').where({ id: activityId, user_id: authedUid }).first();
-    if (!current) {
-      return res.status(404).json({ error: 'Activity not found' });
-    }
-
-    const result = await validateStackTarget(stackedActivityId, authedUid, current.period);
+    const result = await validateStackTarget(stackedActivityId, authedUid);
     if (!result.valid) {
       return res.status(400).json({ error: result.error });
     }

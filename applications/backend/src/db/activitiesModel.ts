@@ -517,7 +517,6 @@ export async function getActivityCalendar(
 export async function validateStackTarget(
   targetId: string,
   userId: string,
-  requiredPeriod: string
 ): Promise<{ valid: boolean; error?: string }> {
   const target = await db("activities")
     .where({ id: targetId, user_id: userId })
@@ -525,10 +524,6 @@ export async function validateStackTarget(
 
   if (!target) {
     return { valid: false, error: "Stacked activity not found" };
-  }
-
-  if (target.period.toLowerCase() !== requiredPeriod.toLowerCase()) {
-    return { valid: false, error: "Stacked activity must have the same period" };
   }
 
   return { valid: true };

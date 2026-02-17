@@ -44,6 +44,7 @@ export default function ActivitiesScreen() {
   const [newGoalCount, setNewGoalCount] = useState('');
   const [newStackedActivityId, setNewStackedActivityId] = useState<string | null>(null);
   const [showCreateStackPicker, setShowCreateStackPicker] = useState(false);
+  const [stackPickerActivities, setStackPickerActivities] = useState<Activity[]>([]);
   const [isTask, setIsTask] = useState(false);
   const [archiveTask, setArchiveTask] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -101,6 +102,7 @@ export default function ActivitiesScreen() {
       setNewGoalCount('');
       setNewStackedActivityId(null);
       setShowCreateStackPicker(false);
+      setStackPickerActivities([]);
       setIsTask(false);
       setArchiveTask(false);
       await refresh();
@@ -413,7 +415,20 @@ export default function ActivitiesScreen() {
                 Stack with (optional)
               </ThemedText>
               <Pressable
-                onPress={() => setShowCreateStackPicker((v) => !v)}
+                onPress={() => {
+                  setShowCreateStackPicker((v) => {
+                    if (!v) {
+                      Promise.all([
+                        getActivities(ActivityPeriod.Daily),
+                        getActivities(ActivityPeriod.Weekly),
+                        getActivities(ActivityPeriod.Monthly),
+                      ])
+                        .then(([d, w, m]) => setStackPickerActivities([...d, ...w, ...m]))
+                        .catch(() => {});
+                    }
+                    return !v;
+                  });
+                }}
                 className="rounded-[12px] border border-black/10 bg-black/5 px-3 py-2.5 dark:border-white/10 dark:bg-white/10"
               >
                 <ThemedText
@@ -424,7 +439,9 @@ export default function ActivitiesScreen() {
                       : 'text-neutral-500 dark:text-neutral-400',
                   ].join(' ')}
                 >
-                  {activities.find((a) => a.id === newStackedActivityId)?.title ?? 'None'}
+                  {stackPickerActivities.find((a) => a.id === newStackedActivityId)?.title ??
+                    activities.find((a) => a.id === newStackedActivityId)?.title ??
+                    'None'}
                 </ThemedText>
               </Pressable>
               {showCreateStackPicker ? (
@@ -445,7 +462,7 @@ export default function ActivitiesScreen() {
                       None
                     </ThemedText>
                   </Pressable>
-                  {activities.map((a) => (
+                  {stackPickerActivities.map((a) => (
                     <Pressable
                       key={a.id}
                       onPress={() => {
@@ -453,7 +470,7 @@ export default function ActivitiesScreen() {
                         setShowCreateStackPicker(false);
                       }}
                       className={[
-                        'mt-1 rounded-[10px] border px-3 py-2',
+                        'mt-1 flex-row items-center gap-1.5 rounded-[10px] border px-3 py-2',
                         newStackedActivityId === a.id
                           ? 'border-emerald-500 bg-emerald-500/10'
                           : 'border-black/10 bg-black/5 dark:border-white/10 dark:bg-white/10',
@@ -462,6 +479,11 @@ export default function ActivitiesScreen() {
                       <ThemedText className="text-[14px] text-neutral-900 dark:text-white">
                         {a.title}
                       </ThemedText>
+                      <View className="rounded-full bg-black/10 px-1.5 py-0.5 dark:bg-white/10">
+                        <ThemedText className="text-[10px] font-semibold capitalize text-neutral-600 dark:text-neutral-400">
+                          {a.period}
+                        </ThemedText>
+                      </View>
                     </Pressable>
                   ))}
                 </View>
@@ -542,7 +564,7 @@ export default function ActivitiesScreen() {
             progressPct={item.completionPercent}
             isOpen={openId === item.id}
             onToggle={() => toggleActivity(item.id)}
-            badge={item.task ? 'Task' : undefined}
+            badge={item.task ? 'Task' : 'Habit'}
           >
             {item.description ? (
               <ThemedText className="opacity-85 leading-5 text-neutral-700 dark:text-neutral-300">

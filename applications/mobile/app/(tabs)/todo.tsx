@@ -1,5 +1,6 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  Animated as RNAnimated,
   FlatList,
   KeyboardAvoidingView,
   Modal,
@@ -57,10 +58,28 @@ const PERIOD_TEXT_COLORS: Record<string, string> = {
 export default function TodoScreen() {
   const router = useRouter();
   const { current: celebrationAchievement, celebrate, dismiss: dismissCelebration } = useCelebration();
+   
+  const listRef = useRef<any>(null);
   const [items, setItems] = useState<TodoItem[]>([]);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [allActivities, setAllActivities] = useState<Activity[]>([]);
   const [fetchError, setFetchError] = useState<string | null>(null);
+
+  // "Added!" toast
+  const [addedToast, setAddedToast] = useState(false);
+  const toastOpacity = useRef(new RNAnimated.Value(0)).current;
+
+  useEffect(() => {
+    if (addedToast) {
+      RNAnimated.timing(toastOpacity, { toValue: 1, duration: 150, useNativeDriver: true }).start();
+      const timer = setTimeout(() => {
+        RNAnimated.timing(toastOpacity, { toValue: 0, duration: 300, useNativeDriver: true }).start(() => {
+          setAddedToast(false);
+        });
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [addedToast, toastOpacity]);
 
   // Inline create task form
   const [showCreateForm, setShowCreateForm] = useState(false);
@@ -101,6 +120,8 @@ export default function TodoScreen() {
     try {
       const item = await addTodoItem(activityId);
       setItems((prev) => [...prev, item]);
+      setAddedToast(true);
+      setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 100);
     } catch {
       // best effort
     }
@@ -164,12 +185,14 @@ export default function TodoScreen() {
         period: ActivityPeriod.Daily,
         goalCount: 1,
         task: true,
-        archiveTask: true,
+        archiveTask: false,
       });
       const item = await addTodoItem(activity.id);
       setItems((prev) => [...prev, item]);
       setNewTaskTitle('');
       setShowCreateForm(false);
+      setAddedToast(true);
+      setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 100);
     } catch {
       // best effort
     } finally {
@@ -227,7 +250,13 @@ export default function TodoScreen() {
                   Task
                 </ThemedText>
               </View>
-            ) : null}
+            ) : (
+              <View className="rounded-full bg-emerald-600/15 px-2 py-0.5 dark:bg-emerald-500/20">
+                <ThemedText className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">
+                  Habit
+                </ThemedText>
+              </View>
+            )}
           </View>
 
           {/* Actions */}
@@ -304,6 +333,7 @@ export default function TodoScreen() {
 
       {/* Draggable list */}
       <DraggableFlatList
+        ref={listRef}
         data={items}
         keyExtractor={(item) => item.id}
         renderItem={renderItem}
@@ -458,7 +488,13 @@ export default function TodoScreen() {
                             Task
                           </ThemedText>
                         </View>
-                      ) : null}
+                      ) : (
+                        <View className="rounded-full bg-emerald-600/15 px-2 py-0.5 dark:bg-emerald-500/20">
+                          <ThemedText className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">
+                            Habit
+                          </ThemedText>
+                        </View>
+                      )}
                     </View>
                     <ThemedText className="text-[18px] text-indigo-500 dark:text-indigo-400">
                       +
@@ -470,6 +506,17 @@ export default function TodoScreen() {
           </KeyboardAvoidingView>
         </View>
       </Modal>
+
+      {/* "Added!" toast */}
+      {addedToast ? (
+        <RNAnimated.View
+          style={{ opacity: toastOpacity }}
+          className="absolute bottom-6 self-center rounded-full bg-emerald-600 px-4 py-2 dark:bg-emerald-500"
+          pointerEvents="none"
+        >
+          <ThemedText className="text-[13px] font-semibold text-white">Added!</ThemedText>
+        </RNAnimated.View>
+      ) : null}
 
       <CelebrationModal achievement={celebrationAchievement} onDismiss={dismissCelebration} />
     </ThemedView>
