@@ -87,7 +87,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="achievements"
         options={{
-          title: 'Rewards',
+          title: 'Achievements',
           tabBarIcon: ({
             color,
           }: Parameters<NonNullable<BottomTabNavigationOptions['tabBarIcon']>>[0]) => (

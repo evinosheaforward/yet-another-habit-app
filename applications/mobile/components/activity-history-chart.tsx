@@ -13,8 +13,18 @@ function formatLabel(dateStr: string, period: string): string {
   const normalized = period.toLowerCase();
   if (normalized === 'monthly') {
     const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     return months[m - 1] ?? '';
   }
@@ -50,9 +60,7 @@ export function ActivityHistoryChart({ history, goalCount, period }: Props) {
       </ThemedText>
 
       {/* Chart area */}
-      <View
-        className="rounded-xl border border-black/5 bg-black/[0.02] p-3 dark:border-white/5 dark:bg-white/[0.02]"
-      >
+      <View className="rounded-xl border border-black/5 bg-black/[0.02] p-3 dark:border-white/5 dark:bg-white/[0.02]">
         <View style={{ height: BAR_AREA_HEIGHT, position: 'relative' }}>
           {/* Goal line */}
           {goalPct != null && (
@@ -84,7 +92,10 @@ export function ActivityHistoryChart({ history, goalCount, period }: Props) {
                     <View
                       style={{
                         width: '70%',
-                        height: Math.max(heightPct > 0 ? 4 : 0, (heightPct / 100) * BAR_AREA_HEIGHT),
+                        height: Math.max(
+                          heightPct > 0 ? 4 : 0,
+                          (heightPct / 100) * BAR_AREA_HEIGHT,
+                        ),
                         backgroundColor: barColor,
                         borderRadius: 4,
                       }}
@@ -96,16 +107,18 @@ export function ActivityHistoryChart({ history, goalCount, period }: Props) {
           </View>
         </View>
 
-        {/* X-axis labels */}
-        <View className="mt-2 flex-row gap-1">
-          {history.map((entry, i) => (
-            <View key={i} className="flex-1 items-center">
-              <ThemedText className="text-[10px] opacity-50">
-                {formatLabel(entry.startDate, period)}
-              </ThemedText>
-            </View>
-          ))}
-        </View>
+        {/* X-axis labels (hidden when too many bars to be readable) */}
+        {history.length <= 10 && (
+          <View className="mt-2 flex-row gap-1">
+            {history.map((entry, i) => (
+              <View key={i} className="flex-1 items-center">
+                <ThemedText className="text-[10px] opacity-50">
+                  {formatLabel(entry.startDate, period)}
+                </ThemedText>
+              </View>
+            ))}
+          </View>
+        )}
       </View>
 
       {/* Legend */}
