@@ -6,6 +6,7 @@ import {
   deleteActivityForUser,
   deleteAllDataForUser,
   getActivitiesForUser,
+  getActivityCalendar,
   getActivityHistory,
   updateActivityCount,
   updateActivityForUser,
@@ -156,6 +157,32 @@ router.put('/activities/:activityId', async (req: Request, res: Response) => {
     return res.json({ activity });
   } catch {
     return res.status(500).json({ error: 'Failed to update activity' });
+  }
+});
+
+router.get('/activities/:activityId/calendar', async (req: Request, res: Response) => {
+  const authedUid = req.auth?.uid;
+  if (!authedUid) return res.status(401).json({ error: 'Not authenticated' });
+
+  const { activityId } = req.params;
+  const rawYear = req.query.year;
+  const rawMonth = req.query.month;
+
+  const year = Math.floor(Number(rawYear));
+  if (!Number.isFinite(year) || year < 2000 || year > 2100) {
+    return res.status(400).json({ error: 'year must be an integer between 2000 and 2100' });
+  }
+
+  const month = Math.floor(Number(rawMonth));
+  if (!Number.isFinite(month) || month < 1 || month > 12) {
+    return res.status(400).json({ error: 'month must be an integer between 1 and 12' });
+  }
+
+  try {
+    const result = await getActivityCalendar(activityId, authedUid, year, month);
+    return res.json(result);
+  } catch {
+    return res.status(404).json({ error: 'Activity not found' });
   }
 });
 

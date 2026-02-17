@@ -282,6 +282,26 @@ export default function ActivityDetailScreen() {
             />
           )}
 
+          {/* Detailed History link */}
+          <Pressable
+            onPress={() =>
+              router.push({
+                pathname: '/activity/history',
+                params: {
+                  activityId,
+                  period: params.period ?? 'daily',
+                  goalCount: String(currentGoal),
+                  title: title || params.title || '',
+                },
+              })
+            }
+            className="mt-4 items-center rounded-[12px] border border-black/10 bg-black/5 px-4 py-2.5 dark:border-white/10 dark:bg-white/10"
+          >
+            <ThemedText className="text-[14px] font-semibold text-neutral-900 dark:text-white">
+              Detailed History
+            </ThemedText>
+          </Pressable>
+
           {/* Count controls */}
           <View className="mt-6 items-center">
             <ThemedText className="mb-2 text-[13px] font-semibold uppercase tracking-wide opacity-60 text-neutral-700 dark:text-neutral-300">

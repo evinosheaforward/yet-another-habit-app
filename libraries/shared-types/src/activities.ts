@@ -47,6 +47,13 @@ export interface TodoDayConfig {
   sortOrder: number;
 }
 
+export interface ActivityCalendar {
+  period: ActivityPeriod;
+  goalCount: number;
+  createdAt: string;
+  entries: ActivityHistoryEntry[];
+}
+
 export function isActivityPeriod(value: unknown): value is ActivityPeriod {
   return (
     value === ActivityPeriod.Daily ||

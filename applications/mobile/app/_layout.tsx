@@ -33,6 +33,7 @@ export default function RootLayout() {
               <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
               <Stack.Screen name="activity/[id]" options={{ title: 'Activity Details' }} />
               <Stack.Screen name="achievement/[id]" options={{ title: 'Achievement' }} />
+              <Stack.Screen name="activity/history" options={{ title: 'Activity History' }} />
               <Stack.Screen name="todo-settings" options={{ title: 'Todo Settings' }} />
               <Stack.Screen name="privacy-policy" options={{ title: 'Privacy Policy' }} />
             </Stack>

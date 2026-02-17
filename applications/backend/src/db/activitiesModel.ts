@@ -1,4 +1,4 @@
-import type { Activity, ActivityHistoryEntry, ActivityPeriod } from "@yet-another-habit-app/shared-types";
+import type { Activity, ActivityCalendar, ActivityHistoryEntry, ActivityPeriod } from "@yet-another-habit-app/shared-types";
 import { db } from "./knex.js";
 import { getUserConfig } from "./userConfigsModel.js";
 import { removeDayConfigsByActivityId, removeDayConfigsByUserId } from "./todoDayConfigsModel.js";
@@ -443,6 +443,75 @@ export async function deleteAllDataForUser(userId: string): Promise<void> {
 
   await db("activities").where({ user_id: userId }).del();
   await db("user_configs").where({ user_id: userId }).del();
+}
+
+export async function getActivityCalendar(
+  activityId: string,
+  userId: string,
+  year: number,
+  month: number,
+): Promise<ActivityCalendar> {
+  const activity = await db("activities")
+    .where({ id: activityId, user_id: userId })
+    .first();
+
+  if (!activity) {
+    throw new Error("Activity not found");
+  }
+
+  const period = (activity.period as string).toLowerCase() as ActivityPeriod;
+  const goalCount = Number(activity.goal_count);
+  const createdAt = activity.created_at as string;
+
+  // month is 1-based from the API, Date.UTC needs 0-based
+  const monthIndex = month - 1;
+  const firstDay = new Date(Date.UTC(year, monthIndex, 1));
+  const lastDay = new Date(Date.UTC(year, monthIndex + 1, 0)); // last day of month
+
+  let startDates: string[];
+
+  if (period === "daily") {
+    // All dates in the month
+    startDates = [];
+    for (let d = 1; d <= lastDay.getUTCDate(); d++) {
+      startDates.push(fmtDate(year, monthIndex, d));
+    }
+  } else if (period === "weekly") {
+    // Find all Monday start dates whose week (Mon-Sun) overlaps the month
+    // Start from the Monday on or before the 1st
+    const firstDow = firstDay.getUTCDay(); // 0=Sun
+    const diffToMonday = firstDow === 0 ? 6 : firstDow - 1;
+    const firstMonday = new Date(Date.UTC(year, monthIndex, 1 - diffToMonday));
+
+    startDates = [];
+    const current = new Date(firstMonday);
+    while (true) {
+      const sunday = new Date(current.getTime() + 6 * 86400000);
+      // Week overlaps month if sunday >= firstDay and monday <= lastDay
+      if (current.getTime() > lastDay.getTime()) break;
+      if (sunday.getTime() >= firstDay.getTime()) {
+        startDates.push(
+          fmtDate(current.getUTCFullYear(), current.getUTCMonth(), current.getUTCDate())
+        );
+      }
+      current.setUTCDate(current.getUTCDate() + 7);
+    }
+  } else {
+    // Monthly: just the first of the requested month
+    startDates = [fmtDate(year, monthIndex, 1)];
+  }
+
+  const rows = await db("activities_history")
+    .select("start_date", "count")
+    .where({ activity_id: activityId })
+    .whereIn("start_date", startDates);
+
+  const entries: ActivityHistoryEntry[] = startDates.map((sd) => {
+    const row = rows.find((r: { start_date: string; count: number }) => r.start_date === sd);
+    return { startDate: sd, count: row ? Number(row.count) : 0 };
+  });
+
+  return { period, goalCount, createdAt, entries };
 }
 
 export async function validateStackTarget(

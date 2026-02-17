@@ -1,5 +1,6 @@
 import type {
   Activity,
+  ActivityCalendar,
   ActivityHistoryEntry,
   ActivityPeriod,
   CompletedAchievement,
@@ -119,6 +120,19 @@ export async function getActivityHistory(
       query: limit !== undefined ? { limit: String(limit) } : undefined,
     },
   );
+}
+
+export async function getActivityCalendar(
+  activityId: string,
+  year: number,
+  month: number,
+): Promise<ActivityCalendar> {
+  const { token } = await getAuthedContext();
+
+  return apiFetch<ActivityCalendar>('GET', `/activities/${activityId}/calendar`, {
+    token,
+    query: { year: String(year), month: String(month) },
+  });
 }
 
 export async function deleteActivity(activityId: string): Promise<void> {
