@@ -31,10 +31,12 @@ import {
   populateTodoItems,
 } from '@/api/todoItems';
 
+import { CelebrationModal } from '@/components/celebration-modal';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { useCelebration } from '@/hooks/use-celebration';
 
-import { Activity, ActivityPeriod, TodoItem } from '@yet-another-habit-app/shared-types';
+import { Activity, ActivityPeriod, CompletedAchievement, TodoItem } from '@yet-another-habit-app/shared-types';
 
 function capitalize(s: string) {
   return s.charAt(0).toUpperCase() + s.slice(1);
@@ -54,6 +56,7 @@ const PERIOD_TEXT_COLORS: Record<string, string> = {
 
 export default function TodoScreen() {
   const router = useRouter();
+  const { current: celebrationAchievement, celebrate, dismiss: dismissCelebration } = useCelebration();
   const [items, setItems] = useState<TodoItem[]>([]);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [allActivities, setAllActivities] = useState<Activity[]>([]);
@@ -121,7 +124,8 @@ export default function TodoScreen() {
     debouncedUpdateActivityCount(
       item.activityId,
       1,
-      async () => {
+      async (_count, habitAchievements) => {
+        const allCompleted: CompletedAchievement[] = [...habitAchievements];
         // For tasks: auto-archive or delete
         if (item.activityTask) {
           try {
@@ -135,10 +139,12 @@ export default function TodoScreen() {
           }
         }
         try {
-          await removeTodoItem(item.id);
+          const todoAchievements = await removeTodoItem(item.id);
+          allCompleted.push(...todoAchievements);
         } catch {
           // already removed optimistically
         }
+        celebrate(allCompleted);
         refresh();
       },
       () => {
@@ -464,6 +470,8 @@ export default function TodoScreen() {
           </KeyboardAvoidingView>
         </View>
       </Modal>
+
+      <CelebrationModal achievement={celebrationAchievement} onDismiss={dismissCelebration} />
     </ThemedView>
   );
 }

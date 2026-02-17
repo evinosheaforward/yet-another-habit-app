@@ -27,8 +27,10 @@ import {
 } from '@/api/activities';
 import { ActivityCountControls } from '@/components/activity-count-controls';
 import { ActivityHistoryChart } from '@/components/activity-history-chart';
+import { CelebrationModal } from '@/components/celebration-modal';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { useCelebration } from '@/hooks/use-celebration';
 
 export default function ActivityDetailScreen() {
   const router = useRouter();
@@ -46,6 +48,7 @@ export default function ActivityDetailScreen() {
     archived: string;
   }>();
 
+  const { current: celebrationAchievement, celebrate, dismiss: dismissCelebration } = useCelebration();
   const activityId = params.id;
   const initialGoalCount = Number(params.goalCount) || 1;
 
@@ -118,8 +121,9 @@ export default function ActivityDetailScreen() {
     debouncedUpdateActivityCount(
       activityId,
       delta,
-      (serverCount) => {
+      (serverCount, completedAchievements) => {
         setCount(serverCount);
+        celebrate(completedAchievements);
 
         // Navigate to stacked activity on increment
         if (delta > 0 && stackedActivityId) {
@@ -472,6 +476,8 @@ export default function ActivityDetailScreen() {
           </Pressable>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      <CelebrationModal achievement={celebrationAchievement} onDismiss={dismissCelebration} />
     </ThemedView>
   );
 }

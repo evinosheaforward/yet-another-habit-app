@@ -85,6 +85,17 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
+        name="achievements"
+        options={{
+          title: 'Rewards',
+          tabBarIcon: ({
+            color,
+          }: Parameters<NonNullable<BottomTabNavigationOptions['tabBarIcon']>>[0]) => (
+            <IconSymbol size={28} name="trophy.fill" color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="archive"
         options={{
           title: 'Archive',

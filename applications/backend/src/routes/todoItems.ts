@@ -13,6 +13,10 @@ import {
   removeDayConfig,
   reorderDayConfigs,
 } from "../db/todoDayConfigsModel";
+import { checkTodoAchievements } from "../db/achievementsModel";
+import { computePeriodStart } from "../db/activitiesModel";
+import { getUserConfig } from "../db/userConfigsModel";
+import { db } from "../db/knex.js";
 
 const router = Router();
 
@@ -83,7 +87,16 @@ router.delete("/todo-items/:id", async (req: Request, res: Response) => {
     return res.status(404).json({ error: "Todo item not found" });
   }
 
-  return res.json({ success: true });
+  // Check if todo list is now empty → trigger todo achievements
+  let completedAchievements: { id: string; title: string; reward: string }[] = [];
+  const remaining = await db("todo_items").where({ user_id: authedUid }).count("* as cnt").first();
+  if (remaining && Number(remaining.cnt) === 0) {
+    const { dayEndOffsetMinutes } = await getUserConfig(authedUid);
+    const today = computePeriodStart("daily", new Date(), dayEndOffsetMinutes);
+    completedAchievements = await checkTodoAchievements(authedUid, today);
+  }
+
+  return res.json({ success: true, completedAchievements });
 });
 
 // --- Day config routes ---

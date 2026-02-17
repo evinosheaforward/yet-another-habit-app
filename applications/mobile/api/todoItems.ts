@@ -1,4 +1,4 @@
-import type { TodoItem } from '@yet-another-habit-app/shared-types';
+import type { TodoItem, CompletedAchievement } from '@yet-another-habit-app/shared-types';
 import { getAuthedContext, apiFetch } from '@/api/client';
 
 export async function getTodoItems(): Promise<TodoItem[]> {
@@ -16,9 +16,14 @@ export async function addTodoItem(activityId: string): Promise<TodoItem> {
   return json.todoItem;
 }
 
-export async function removeTodoItem(todoItemId: string): Promise<void> {
+export async function removeTodoItem(todoItemId: string): Promise<CompletedAchievement[]> {
   const { token } = await getAuthedContext();
-  await apiFetch<{ success: boolean }>('DELETE', `/todo-items/${todoItemId}`, { token });
+  const json = await apiFetch<{ success: boolean; completedAchievements?: CompletedAchievement[] }>(
+    'DELETE',
+    `/todo-items/${todoItemId}`,
+    { token },
+  );
+  return json.completedAchievements ?? [];
 }
 
 export async function reorderTodoItems(orderedIds: string[]): Promise<void> {

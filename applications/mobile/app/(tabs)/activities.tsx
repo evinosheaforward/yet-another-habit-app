@@ -20,8 +20,10 @@ import {
 } from '@/api/activities';
 
 import { Collapsible } from '@/components/ui/collapsible';
+import { CelebrationModal } from '@/components/celebration-modal';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { useCelebration } from '@/hooks/use-celebration';
 
 import { Activity, ActivityPeriod } from '@yet-another-habit-app/shared-types';
 
@@ -31,6 +33,7 @@ function capitalize(s: string) {
 
 export default function ActivitiesScreen() {
   const router = useRouter();
+  const { current: celebrationAchievement, celebrate, dismiss: dismissCelebration } = useCelebration();
   const [period, setPeriod] = useState<ActivityPeriod>(ActivityPeriod.Daily);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [openId, setOpenId] = useState<string | null>(null);
@@ -162,7 +165,8 @@ export default function ActivitiesScreen() {
       debouncedUpdateActivityCount(
         activityId,
         delta,
-        async () => {
+        async (_count, completedAchievements) => {
+          celebrate(completedAchievements);
           try {
             if (activity.archiveTask) {
               await archiveActivity(activityId);
@@ -206,7 +210,8 @@ export default function ActivitiesScreen() {
     debouncedUpdateActivityCount(
       activityId,
       delta,
-      () => {
+      (_count, completedAchievements) => {
+        celebrate(completedAchievements);
         refresh();
 
         // Navigate to stacked activity on increment
@@ -594,6 +599,8 @@ export default function ActivitiesScreen() {
           </Collapsible>
         )}
       />
+
+      <CelebrationModal achievement={celebrationAchievement} onDismiss={dismissCelebration} />
     </ThemedView>
   );
 }

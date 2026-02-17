@@ -20,6 +20,7 @@ const MAPPING = {
   'chevron.right': 'chevron-right',
   'archivebox.fill': 'archive',
   'list.bullet': 'format-list-bulleted',
+  'trophy.fill': 'emoji-events',
 } as IconMapping;
 
 /**

@@ -5,6 +5,7 @@ import { initFirebaseAdmin } from "./auth/firebase";
 import { requireAuth } from "./auth/requireAuth";
 import activitiesRoutes from "./routes/activities";
 import todoItemsRoutes from "./routes/todoItems";
+import achievementsRoutes from "./routes/achievements";
 
 initFirebaseAdmin();
 
@@ -28,6 +29,7 @@ app.get("/health", (_req, res) => res.json({ ok: true }));
 app.use(requireAuth);
 app.use(activitiesRoutes);
 app.use(todoItemsRoutes);
+app.use(achievementsRoutes);
 
 // Global error handler — catches unhandled errors in route handlers
 app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {

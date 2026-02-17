@@ -169,7 +169,7 @@ describe('activities API', () => {
 
       const result = await updateActivityCount('activity-123', 1);
 
-      expect(result).toEqual({ count: 3 });
+      expect(result).toEqual({ count: 3, completedAchievements: [] });
       expect(mockFetch).toHaveBeenCalledTimes(1);
 
       const [url, options] = mockFetch.mock.calls[0];
@@ -187,7 +187,7 @@ describe('activities API', () => {
 
       const result = await updateActivityCount('activity-123', -1);
 
-      expect(result).toEqual({ count: 1 });
+      expect(result).toEqual({ count: 1, completedAchievements: [] });
       const body = JSON.parse(mockFetch.mock.calls[0][1].body);
       expect(body.delta).toBe(-1);
     });

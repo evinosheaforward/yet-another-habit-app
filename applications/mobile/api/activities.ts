@@ -2,6 +2,7 @@ import type {
   Activity,
   ActivityHistoryEntry,
   ActivityPeriod,
+  CompletedAchievement,
   UserConfig,
 } from '@yet-another-habit-app/shared-types';
 import { getAuthedContext, apiFetch } from '@/api/client';
@@ -161,22 +162,23 @@ const DEBOUNCE_MS = 500;
 export async function updateActivityCount(
   activityId: string,
   delta: number,
-): Promise<{ count: number }> {
+): Promise<{ count: number; completedAchievements: CompletedAchievement[] }> {
   const { token } = await getAuthedContext();
 
-  const json = await apiFetch<{ count: number }>('POST', `/activities/${activityId}/history`, {
-    token,
-    body: { delta },
-  });
+  const json = await apiFetch<{ count: number; completedAchievements?: CompletedAchievement[] }>(
+    'POST',
+    `/activities/${activityId}/history`,
+    { token, body: { delta } },
+  );
 
   invalidateActivitiesCache();
-  return json;
+  return { count: json.count, completedAchievements: json.completedAchievements ?? [] };
 }
 
 export function debouncedUpdateActivityCount(
   activityId: string,
   delta: number,
-  onResult: (count: number) => void,
+  onResult: (count: number, completedAchievements: CompletedAchievement[]) => void,
   onError: (err: Error) => void,
 ): void {
   const existing = pendingDeltas.get(activityId);
@@ -197,11 +199,13 @@ export function debouncedUpdateActivityCount(
     try {
       const sign = accumulated > 0 ? 1 : -1;
       let lastCount = 0;
+      const allCompleted: CompletedAchievement[] = [];
       for (let i = 0; i < Math.abs(accumulated); i++) {
         const result = await updateActivityCount(activityId, sign);
         lastCount = result.count;
+        allCompleted.push(...result.completedAchievements);
       }
-      onResult(lastCount);
+      onResult(lastCount, allCompleted);
     } catch (err) {
       onError(err instanceof Error ? err : new Error(String(err)));
     }

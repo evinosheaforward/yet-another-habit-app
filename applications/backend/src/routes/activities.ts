@@ -13,6 +13,7 @@ import {
   wouldCreateCycle,
 } from '../db/activitiesModel';
 import { getUserConfig, upsertUserConfig } from '../db/userConfigsModel';
+import { checkHabitAchievements } from '../db/achievementsModel';
 import { deleteFirebaseUser } from '../auth/firebase';
 import { db } from '../db/knex.js';
 
@@ -199,8 +200,20 @@ router.post('/activities/:activityId/history', async (req: Request, res: Respons
     return res.status(404).json({ error: 'Activity not found' });
   }
 
-  const count = await updateActivityCount(activityId, authedUid, activity.period, delta);
-  return res.json({ count });
+  const newCount = await updateActivityCount(activityId, authedUid, activity.period, delta);
+
+  // Check if 100% boundary was crossed for achievement tracking
+  const goalCount = Number(activity.goal_count);
+  const oldCount = newCount - delta;
+  const wasComplete = oldCount >= goalCount;
+  const isNowComplete = newCount >= goalCount;
+
+  let completedAchievements: { id: string; title: string; reward: string }[] = [];
+  if (wasComplete !== isNowComplete) {
+    completedAchievements = await checkHabitAchievements(authedUid, activityId, isNowComplete, activity.period);
+  }
+
+  return res.json({ count: newCount, completedAchievements });
 });
 
 router.delete('/activities/:activityId', async (req: Request, res: Response) => {

@@ -59,3 +59,37 @@ export function parseActivityPeriod(value: unknown): ActivityPeriod | null {
   if (isActivityPeriod(value)) return value;
   return null;
 }
+
+export enum AchievementType {
+  Habit = 'habit',
+  Period = 'period',
+  Todo = 'todo',
+}
+
+export interface Achievement {
+  id: string;
+  title: string;
+  reward: string;
+  type: AchievementType;
+  activityId: string | null;
+  activityTitle: string | null;
+  period: ActivityPeriod | null;
+  goalCount: number;
+  count: number;
+  repeatable: boolean;
+  completed: boolean;
+}
+
+export interface CompletedAchievement {
+  id: string;
+  title: string;
+  reward: string;
+}
+
+export function isAchievementType(value: unknown): value is AchievementType {
+  return (
+    value === AchievementType.Habit ||
+    value === AchievementType.Period ||
+    value === AchievementType.Todo
+  );
+}

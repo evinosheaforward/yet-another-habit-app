@@ -411,6 +411,9 @@ export async function deleteActivityForUser(
   await db("todo_items").where({ activity_id: activityId }).del();
   await removeDayConfigsByActivityId(activityId);
 
+  // Orphan achievements that referenced this activity
+  await db("achievements").where({ activity_id: activityId }).update({ activity_id: null });
+
   // Delete history rows (FK has no CASCADE)
   await db("activities_history").where({ activity_id: activityId }).del();
 
@@ -432,6 +435,7 @@ export async function deleteAllDataForUser(userId: string): Promise<void> {
 
   await db("todo_items").where({ user_id: userId }).del();
   await removeDayConfigsByUserId(userId);
+  await db("achievements").where({ user_id: userId }).del();
 
   if (activityIds.length > 0) {
     await db("activities_history").whereIn("activity_id", activityIds).del();
