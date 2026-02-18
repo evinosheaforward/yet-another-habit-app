@@ -2,7 +2,7 @@ import { Image } from 'expo-image';
 import { useState } from 'react';
 import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Link, router } from 'expo-router';
-import { signInWithEmailAndPassword } from 'firebase/auth';
+import { sendPasswordResetEmail, signInWithEmailAndPassword } from 'firebase/auth';
 
 import { auth } from '@/auth/firebaseClient';
 import { getAuthErrorMessage } from '@/auth/firebaseErrors';
@@ -17,6 +17,8 @@ export default function LoginScreen() {
 
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
+  const [resetHint, setResetHint] = useState(false);
 
   async function onLogin() {
     setBusy(true);
@@ -28,6 +30,22 @@ export default function LoginScreen() {
       setError(getAuthErrorMessage(e));
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function handleForgotPassword() {
+    setError(null);
+    setResetSent(false);
+    setResetHint(false);
+    if (!email.trim()) {
+      setResetHint(true);
+      return;
+    }
+    try {
+      await sendPasswordResetEmail(auth, email.trim());
+      setResetSent(true);
+    } catch (e) {
+      setError(getAuthErrorMessage(e));
     }
   }
 
@@ -91,6 +109,26 @@ export default function LoginScreen() {
               onSubmitEditing={onLogin}
               editable={!busy}
             />
+
+            <ThemedView className="-mt-1 gap-1">
+              <TouchableOpacity onPress={handleForgotPassword} activeOpacity={0.7}>
+                <ThemedText type="link" className="text-[13px] text-indigo-500">
+                  Forgot password?
+                </ThemedText>
+              </TouchableOpacity>
+
+              {resetHint ? (
+                <ThemedText className="text-[12px] opacity-60 text-neutral-700 dark:text-neutral-300">
+                  Enter your email above, then tap "Forgot password?" to send a reset link.
+                </ThemedText>
+              ) : null}
+
+              {resetSent ? (
+                <ThemedText className="text-[13px] text-green-600 dark:text-green-400">
+                  Reset link sent! Check your email.
+                </ThemedText>
+              ) : null}
+            </ThemedView>
 
             {error ? (
               <ThemedText className="-mt-1 text-[13px] text-red-600 dark:text-red-400">{error}</ThemedText>
