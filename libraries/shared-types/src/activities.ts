@@ -43,7 +43,18 @@ export interface TodoDayConfig {
   activityId: string;
   activityTitle: string;
   activityPeriod: ActivityPeriod;
+  activityTask: boolean;
   dayOfWeek: number;
+  sortOrder: number;
+}
+
+export interface TodoDateConfig {
+  id: string;
+  activityId: string;
+  activityTitle: string;
+  activityPeriod: ActivityPeriod;
+  activityTask: boolean;
+  scheduledDate: string; // YYYY-MM-DD
   sortOrder: number;
 }
 

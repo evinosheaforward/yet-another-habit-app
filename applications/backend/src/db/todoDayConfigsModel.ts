@@ -13,6 +13,7 @@ export async function getDayConfigs(
       'todo_day_configs.activity_id',
       'activities.title as activity_title',
       'activities.period as activity_period',
+      'activities.task as activity_task',
       'todo_day_configs.day_of_week',
       'todo_day_configs.sort_order',
     ])
@@ -28,6 +29,7 @@ export async function getDayConfigs(
       activity_id: string;
       activity_title: string;
       activity_period: string;
+      activity_task: boolean | number;
       day_of_week: number;
       sort_order: number;
     }) => ({
@@ -35,6 +37,7 @@ export async function getDayConfigs(
       activityId: r.activity_id,
       activityTitle: r.activity_title,
       activityPeriod: r.activity_period as TodoDayConfig['activityPeriod'],
+      activityTask: !!r.activity_task,
       dayOfWeek: r.day_of_week,
       sortOrder: r.sort_order,
     }),
@@ -46,16 +49,12 @@ export async function addDayConfig(
   dayOfWeek: number,
   activityId: string,
 ): Promise<TodoDayConfig> {
-  // Verify activity belongs to user, not archived, not a task
   const activity = await db('activities')
     .where({ id: activityId, user_id: userId, archived: false })
     .first();
 
   if (!activity) {
     throw new Error('Activity not found or is archived');
-  }
-  if (activity.task) {
-    throw new Error('Tasks cannot be added to day configs');
   }
 
   const maxRow = await db('todo_day_configs')
@@ -79,6 +78,7 @@ export async function addDayConfig(
     activityId,
     activityTitle: activity.title,
     activityPeriod: activity.period,
+    activityTask: !!activity.task,
     dayOfWeek,
     sortOrder,
   };

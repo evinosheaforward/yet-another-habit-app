@@ -4,6 +4,7 @@ import { randomUUID } from "crypto";
 import { computePeriodStart } from "./activitiesModel.js";
 import { getUserConfig, getLastPopulatedDate, setLastPopulatedDate } from "./userConfigsModel.js";
 import { getDayConfigs } from "./todoDayConfigsModel.js";
+import { getDateConfigs, removeDateConfigsForDate } from "./todoDateConfigsModel.js";
 
 export async function getTodoItemsForUser(userId: string): Promise<TodoItem[]> {
   const rows = await db("todo_items")
@@ -124,21 +125,28 @@ export async function populateTodoForToday(userId: string): Promise<TodoItem[]> 
   const dayOfWeek = adjustedNow.getUTCDay(); // 0=Sun .. 6=Sat
 
   const dayConfigs = await getDayConfigs(userId, dayOfWeek);
+  const dateConfigs = await getDateConfigs(userId, today);
+
+  // Merge both sources into a unified list of activity IDs
+  const allConfigs = [
+    ...dayConfigs.map((c) => ({ activityId: c.activityId, activityTask: c.activityTask })),
+    ...dateConfigs.map((c) => ({ activityId: c.activityId, activityTask: c.activityTask })),
+  ];
 
   if (config.clearTodoOnNewDay) {
-    // Clear mode: wipe everything, insert configured habits
+    // Clear mode: wipe everything, insert from schedule
     await db("todo_items").where({ user_id: userId }).del();
 
-    for (let i = 0; i < dayConfigs.length; i++) {
+    for (let i = 0; i < allConfigs.length; i++) {
       await db("todo_items").insert({
         id: randomUUID(),
         user_id: userId,
-        activity_id: dayConfigs[i].activityId,
+        activity_id: allConfigs[i].activityId,
         sort_order: i,
       });
     }
   } else {
-    // Keep mode: preserve ALL existing items, only append new scheduled habits
+    // Keep mode: preserve ALL existing items, only append new scheduled items
     const currentItems = await db("todo_items")
       .where({ user_id: userId })
       .select("activity_id");
@@ -154,16 +162,30 @@ export async function populateTodoForToday(userId: string): Promise<TodoItem[]> 
 
     let nextOrder = (maxRow?.maxOrder ?? -1) + 1;
 
-    for (const config of dayConfigs) {
-      if (!existingActivityIds.has(config.activityId)) {
+    for (const cfg of allConfigs) {
+      if (!existingActivityIds.has(cfg.activityId)) {
         await db("todo_items").insert({
           id: randomUUID(),
           user_id: userId,
-          activity_id: config.activityId,
+          activity_id: cfg.activityId,
           sort_order: nextOrder++,
         });
       }
     }
+  }
+
+  // One-shot cleanup: date configs are always one-shot
+  await removeDateConfigsForDate(userId, today);
+
+  // Day configs for tasks are one-shot — remove them after population
+  const taskDayConfigs = dayConfigs.filter((c) => c.activityTask);
+  if (taskDayConfigs.length > 0) {
+    await db("todo_day_configs")
+      .whereIn(
+        "id",
+        taskDayConfigs.map((c) => c.id),
+      )
+      .del();
   }
 
   await setLastPopulatedDate(userId, today);
