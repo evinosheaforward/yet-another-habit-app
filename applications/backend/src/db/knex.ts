@@ -31,4 +31,9 @@ export function makeConfig(): Knex.Config {
   } satisfies Knex.Config;
 }
 
-export const db: Knex = knex(makeConfig());
+export let db: Knex = knex(makeConfig());
+
+/** @internal Test-only: swap the database connection. */
+export function __setTestDb(testDb: Knex) {
+  db = testDb;
+}

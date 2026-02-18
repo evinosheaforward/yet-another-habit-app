@@ -138,43 +138,31 @@ export async function populateTodoForToday(userId: string): Promise<TodoItem[]> 
       });
     }
   } else {
-    // Keep mode: remove old habits (non-task items), keep tasks
-    // Get current items with task info
+    // Keep mode: preserve ALL existing items, only append new scheduled habits
     const currentItems = await db("todo_items")
-      .join("activities", "todo_items.activity_id", "activities.id")
-      .select(["todo_items.id", "activities.task"])
-      .where({ "todo_items.user_id": userId })
-      .orderBy("todo_items.sort_order", "asc");
+      .where({ user_id: userId })
+      .select("activity_id");
 
-    // Delete non-task items
-    const nonTaskIds = currentItems
-      .filter((item: { id: string; task: boolean | number }) => !item.task)
-      .map((item: { id: string }) => item.id);
+    const existingActivityIds = new Set(
+      currentItems.map((item: { activity_id: string }) => item.activity_id),
+    );
 
-    if (nonTaskIds.length > 0) {
-      await db("todo_items").whereIn("id", nonTaskIds).del();
-    }
+    const maxRow = await db("todo_items")
+      .where({ user_id: userId })
+      .max("sort_order as maxOrder")
+      .first();
 
-    // Re-index remaining tasks 0..N-1
-    const remainingTasks = currentItems
-      .filter((item: { id: string; task: boolean | number }) => !!item.task)
-      .map((item: { id: string }) => item.id);
+    let nextOrder = (maxRow?.maxOrder ?? -1) + 1;
 
-    for (let i = 0; i < remainingTasks.length; i++) {
-      await db("todo_items")
-        .where({ id: remainingTasks[i] })
-        .update({ sort_order: i });
-    }
-
-    // Append configured habits starting at N
-    const startOrder = remainingTasks.length;
-    for (let i = 0; i < dayConfigs.length; i++) {
-      await db("todo_items").insert({
-        id: randomUUID(),
-        user_id: userId,
-        activity_id: dayConfigs[i].activityId,
-        sort_order: startOrder + i,
-      });
+    for (const config of dayConfigs) {
+      if (!existingActivityIds.has(config.activityId)) {
+        await db("todo_items").insert({
+          id: randomUUID(),
+          user_id: userId,
+          activity_id: config.activityId,
+          sort_order: nextOrder++,
+        });
+      }
     }
   }
 

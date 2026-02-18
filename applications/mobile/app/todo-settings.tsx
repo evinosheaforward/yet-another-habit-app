@@ -128,8 +128,8 @@ export default function TodoSettingsScreen() {
   }
 
   async function handleToggleClear(value: boolean) {
-    setClearOnNewDay(value);
     if (!userConfig) return;
+    setClearOnNewDay(value);
     try {
       const updated = await updateUserConfig({ clearTodoOnNewDay: value });
       setUserConfig(updated);
