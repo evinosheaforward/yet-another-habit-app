@@ -153,7 +153,7 @@ export default function AchievementDetailScreen() {
 
           {/* Progress display */}
           <View className="mb-6 items-center">
-            <ThemedText className="mb-2 text-[13px] font-semibold uppercase tracking-wide opacity-60 text-neutral-700 dark:text-neutral-300">
+            <ThemedText className="mb-2 text-[13px] font-semibold uppercase tracking-wide opacity-50 text-neutral-700 dark:text-neutral-300">
               Progress
             </ThemedText>
             <ThemedText className="text-[28px] font-bold text-neutral-900 dark:text-white">
@@ -188,12 +188,12 @@ export default function AchievementDetailScreen() {
           ) : null}
 
           {/* Settings */}
-          <ThemedText className="mb-1 text-[20px] font-bold uppercase tracking-wide underline text-neutral-700 dark:text-neutral-300">
+          <ThemedText type="subtitle" className="mb-1 text-neutral-900 dark:text-white">
             Settings
           </ThemedText>
 
           {/* Title */}
-          <ThemedText className="mb-1 mt-4 text-[13px] font-semibold uppercase tracking-wide opacity-60 text-neutral-700 dark:text-neutral-300">
+          <ThemedText className="mb-1 mt-4 text-[13px] font-semibold uppercase tracking-wide opacity-50 text-neutral-700 dark:text-neutral-300">
             Title
           </ThemedText>
           <TextInput
@@ -207,7 +207,7 @@ export default function AchievementDetailScreen() {
           />
 
           {/* Reward */}
-          <ThemedText className="mb-1 mt-4 text-[13px] font-semibold uppercase tracking-wide opacity-60 text-neutral-700 dark:text-neutral-300">
+          <ThemedText className="mb-1 mt-4 text-[13px] font-semibold uppercase tracking-wide opacity-50 text-neutral-700 dark:text-neutral-300">
             Reward
           </ThemedText>
           <TextInput
@@ -225,7 +225,7 @@ export default function AchievementDetailScreen() {
           />
 
           {/* Goal count */}
-          <ThemedText className="mb-1 mt-4 text-[13px] font-semibold uppercase tracking-wide opacity-60 text-neutral-700 dark:text-neutral-300">
+          <ThemedText className="mb-1 mt-4 text-[13px] font-semibold uppercase tracking-wide opacity-50 text-neutral-700 dark:text-neutral-300">
             Goal Count
           </ThemedText>
           <TextInput
@@ -267,7 +267,7 @@ export default function AchievementDetailScreen() {
 
           {/* Error */}
           {error ? (
-            <ThemedText className="mt-4 text-center text-[13px] text-red-500">{error}</ThemedText>
+            <ThemedText className="mt-4 text-center text-[13px] text-red-600 dark:text-red-400">{error}</ThemedText>
           ) : null}
 
           {/* Save button */}
@@ -287,7 +287,7 @@ export default function AchievementDetailScreen() {
             disabled={deleting || saving}
             className={[
               'mt-3 items-center rounded-[12px] border border-red-500/30 bg-red-500/10 px-4 py-3',
-              deleting || saving ? 'opacity-55' : 'opacity-100',
+              deleting || saving ? 'opacity-50' : 'opacity-100',
             ].join(' ')}
           >
             <ThemedText className="font-semibold text-red-600 dark:text-red-400">

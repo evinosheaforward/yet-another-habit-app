@@ -198,6 +198,32 @@ export async function updateActivityCount(
     [id, activityId, userId, startDate, delta, delta]
   );
 
+  // Track individual completion dates for calendar heatmap
+  const adjustedNow = new Date(new Date().getTime() - dayEndOffsetMinutes * 60_000);
+  const completionDate = fmtDate(
+    adjustedNow.getUTCFullYear(),
+    adjustedNow.getUTCMonth(),
+    adjustedNow.getUTCDate(),
+  );
+
+  if (delta === 1) {
+    await db("activity_completion_dates").insert({
+      id: randomUUID(),
+      activity_id: activityId,
+      user_id: userId,
+      completion_date: completionDate,
+    });
+  } else if (delta === -1) {
+    // Delete one row matching this activity + date
+    const toDelete = await db("activity_completion_dates")
+      .where({ activity_id: activityId, completion_date: completionDate })
+      .select("id")
+      .first();
+    if (toDelete) {
+      await db("activity_completion_dates").where({ id: toDelete.id }).del();
+    }
+  }
+
   const row = await db("activities_history")
     .where({ activity_id: activityId, start_date: startDate })
     .first();
@@ -321,6 +347,7 @@ export async function updateActivityForUser(
   // When unarchiving a task, reset its history so it comes back incomplete
   if (updates.archived === false && !!existing.task && !!existing.archived) {
     await db("activities_history").where({ activity_id: activityId }).del();
+    await db("activity_completion_dates").where({ activity_id: activityId }).del();
   }
 
   const { dayEndOffsetMinutes } = await getUserConfig(userId);
@@ -416,6 +443,7 @@ export async function deleteActivityForUser(
 
   // Delete history rows (FK has no CASCADE)
   await db("activities_history").where({ activity_id: activityId }).del();
+  await db("activity_completion_dates").where({ activity_id: activityId }).del();
 
   // Nullify stacked_activity_id references pointing to this activity
   await db("activities")
@@ -439,6 +467,7 @@ export async function deleteAllDataForUser(userId: string): Promise<void> {
 
   if (activityIds.length > 0) {
     await db("activities_history").whereIn("activity_id", activityIds).del();
+    await db("activity_completion_dates").whereIn("activity_id", activityIds).del();
   }
 
   await db("activities").where({ user_id: userId }).del();
@@ -510,6 +539,27 @@ export async function getActivityCalendar(
     const row = rows.find((r: { start_date: string; count: number }) => r.start_date === sd);
     return { startDate: sd, count: row ? Number(row.count) : 0 };
   });
+
+  // For weekly/monthly periods, fetch individual completion dates for the calendar
+  if (period !== "daily") {
+    const firstDate = fmtDate(year, monthIndex, 1);
+    const lastDate = fmtDate(
+      lastDay.getUTCFullYear(),
+      lastDay.getUTCMonth(),
+      lastDay.getUTCDate(),
+    );
+    const completionRows = await db("activity_completion_dates")
+      .where({ activity_id: activityId })
+      .whereBetween("completion_date", [firstDate, lastDate])
+      .select("completion_date")
+      .orderBy("completion_date");
+
+    const completionDates = completionRows.map(
+      (r: { completion_date: string }) => r.completion_date,
+    );
+
+    return { period, goalCount, createdAt, entries, completionDates };
+  }
 
   return { period, goalCount, createdAt, entries };
 }

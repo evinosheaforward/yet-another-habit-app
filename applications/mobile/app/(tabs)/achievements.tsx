@@ -264,7 +264,7 @@ export default function AchievementsScreen() {
                 />
 
                 {/* Type picker */}
-                <ThemedText className="mb-1 mt-3 text-[13px] font-semibold uppercase tracking-wide opacity-60 text-neutral-700 dark:text-neutral-300">
+                <ThemedText className="mb-1 mt-3 text-[13px] font-semibold uppercase tracking-wide opacity-50 text-neutral-700 dark:text-neutral-300">
                   Type
                 </ThemedText>
                 <View className="flex-row gap-2">
@@ -304,7 +304,7 @@ export default function AchievementsScreen() {
                 {/* Activity picker (for habit type) */}
                 {newType === AchievementType.Habit ? (
                   <View className="mt-2">
-                    <ThemedText className="mb-1 text-[13px] font-semibold uppercase tracking-wide opacity-60 text-neutral-700 dark:text-neutral-300">
+                    <ThemedText className="mb-1 text-[13px] font-semibold uppercase tracking-wide opacity-50 text-neutral-700 dark:text-neutral-300">
                       Activity
                     </ThemedText>
                     <Pressable
@@ -362,7 +362,7 @@ export default function AchievementsScreen() {
                 {/* Period picker (for period type) */}
                 {newType === AchievementType.Period ? (
                   <View className="mt-2">
-                    <ThemedText className="mb-1 text-[13px] font-semibold uppercase tracking-wide opacity-60 text-neutral-700 dark:text-neutral-300">
+                    <ThemedText className="mb-1 text-[13px] font-semibold uppercase tracking-wide opacity-50 text-neutral-700 dark:text-neutral-300">
                       Period
                     </ThemedText>
                     <View className="flex-row gap-2">
@@ -437,7 +437,7 @@ export default function AchievementsScreen() {
                 </ThemedText>
 
                 {createError ? (
-                  <ThemedText className="mt-2 text-[13px] text-red-500">{createError}</ThemedText>
+                  <ThemedText className="mt-2 text-[13px] text-red-600 dark:text-red-400">{createError}</ThemedText>
                 ) : null}
 
                 <View className="mt-4 flex-row justify-end gap-2.5">
@@ -450,7 +450,7 @@ export default function AchievementsScreen() {
                     className={[
                       'rounded-[12px] px-3.5 py-2.5',
                       'bg-black/5 dark:bg-white/10',
-                      saving ? 'opacity-60' : 'opacity-100',
+                      saving ? 'opacity-50' : 'opacity-100',
                     ].join(' ')}
                   >
                     <ThemedText className="text-neutral-900 dark:text-white">Cancel</ThemedText>

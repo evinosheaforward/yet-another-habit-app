@@ -90,14 +90,14 @@ export function Collapsible({
                 {title}
               </ThemedText>
               {badge ? (
-                <View className="rounded-full bg-emerald-600/15 px-2 py-0.5 dark:bg-emerald-500/20">
+                <View className="rounded-full bg-emerald-500/15 px-2 py-0.5">
                   <ThemedText className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">
                     {badge}
                   </ThemedText>
                 </View>
               ) : null}
             </View>
-            <ThemedText className="text-[13px] opacity-65 text-neutral-700 dark:text-neutral-300">
+            <ThemedText className="text-[13px] opacity-50 text-neutral-700 dark:text-neutral-300">
               {pct}%
             </ThemedText>
           </View>

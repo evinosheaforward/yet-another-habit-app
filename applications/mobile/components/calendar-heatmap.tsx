@@ -36,12 +36,36 @@ function dateStr(y: number, m: number, d: number): string {
 function getCompletionForDay(
   dayDate: string,
   data: ActivityCalendar,
-): { count: number; goalCount: number } | null {
-  const { period, entries, goalCount } = data;
+): { count: number; goalCount: number; periodCount?: number } | null {
+  const { period, entries, goalCount, completionDates } = data;
 
   if (period === ActivityPeriod.Daily) {
     const entry = entries.find((e) => e.startDate === dayDate);
     return entry ? { count: entry.count, goalCount } : { count: 0, goalCount };
+  }
+
+  // For weekly/monthly: use per-day completion dates if available
+  if (completionDates) {
+    const dayCount = completionDates.filter((d) => d === dayDate).length;
+
+    // Find the period-level entry to get the overall period count
+    let periodEntry: { count: number } | undefined;
+    if (period === ActivityPeriod.Weekly) {
+      const dayTime = new Date(dayDate + 'T00:00:00Z').getTime();
+      periodEntry = entries.find((e) => {
+        const startTime = new Date(e.startDate + 'T00:00:00Z').getTime();
+        const endTime = startTime + 7 * 86400000;
+        return dayTime >= startTime && dayTime < endTime;
+      });
+    } else {
+      periodEntry = entries[0];
+    }
+
+    return {
+      count: dayCount,
+      goalCount,
+      periodCount: periodEntry?.count ?? 0,
+    };
   }
 
   if (period === ActivityPeriod.Weekly) {
@@ -85,7 +109,16 @@ function getCellColor(
   const result = getCompletionForDay(dayDate, data);
   if (!result) return 'red';
 
-  const { count, goalCount } = result;
+  const { count, goalCount, periodCount } = result;
+
+  // When we have per-day data (weekly/monthly with completionDates)
+  if (periodCount !== undefined) {
+    if (count === 0) return 'gray'; // no completions on this day → N/A
+    if (goalCount > 0 && periodCount >= goalCount) return 'green'; // period goal met
+    return 'yellow'; // partial progress
+  }
+
+  // Daily or fallback (no completionDates)
   if (count === 0) return 'red';
   if (goalCount > 0 && count >= goalCount) return 'green';
   return 'yellow';
@@ -168,19 +201,19 @@ export function CalendarHeatmap({ data, year, month }: Props) {
       <View className="mt-3 flex-row flex-wrap justify-center gap-3">
         <View className="flex-row items-center gap-1">
           <View className="h-3 w-3 rounded-sm bg-neutral-300 dark:bg-neutral-700" />
-          <ThemedText className="text-[11px] opacity-60">N/A</ThemedText>
+          <ThemedText className="text-[11px] opacity-50">N/A</ThemedText>
         </View>
         <View className="flex-row items-center gap-1">
           <View className="h-3 w-3 rounded-sm bg-red-400" />
-          <ThemedText className="text-[11px] opacity-60">None</ThemedText>
+          <ThemedText className="text-[11px] opacity-50">None</ThemedText>
         </View>
         <View className="flex-row items-center gap-1">
           <View className="h-3 w-3 rounded-sm bg-amber-400" />
-          <ThemedText className="text-[11px] opacity-60">Partial</ThemedText>
+          <ThemedText className="text-[11px] opacity-50">Partial</ThemedText>
         </View>
         <View className="flex-row items-center gap-1">
           <View className="h-3 w-3 rounded-sm bg-emerald-500" />
-          <ThemedText className="text-[11px] opacity-60">Complete</ThemedText>
+          <ThemedText className="text-[11px] opacity-50">Complete</ThemedText>
         </View>
       </View>
     </View>

@@ -251,7 +251,7 @@ export default function TodoScreen() {
                 </ThemedText>
               </View>
             ) : (
-              <View className="rounded-full bg-emerald-600/15 px-2 py-0.5 dark:bg-emerald-500/20">
+              <View className="rounded-full bg-emerald-500/15 px-2 py-0.5">
                 <ThemedText className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">
                   Habit
                 </ThemedText>
@@ -489,7 +489,7 @@ export default function TodoScreen() {
                           </ThemedText>
                         </View>
                       ) : (
-                        <View className="rounded-full bg-emerald-600/15 px-2 py-0.5 dark:bg-emerald-500/20">
+                        <View className="rounded-full bg-emerald-500/15 px-2 py-0.5">
                           <ThemedText className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">
                             Habit
                           </ThemedText>

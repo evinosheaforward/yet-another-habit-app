@@ -309,7 +309,7 @@ export default function ActivityDetailScreen() {
 
           {/* Count controls */}
           <View className="mt-6 items-center">
-            <ThemedText className="mb-2 text-[13px] font-semibold uppercase tracking-wide opacity-60 text-neutral-700 dark:text-neutral-300">
+            <ThemedText className="mb-2 text-[13px] font-semibold uppercase tracking-wide opacity-50 text-neutral-700 dark:text-neutral-300">
               Current Progress
             </ThemedText>
             <ActivityCountControls
@@ -322,12 +322,12 @@ export default function ActivityDetailScreen() {
           </View>
 
           {/* Settings section header */}
-          <ThemedText className="mb-1 mt-8 text-[20px] underline font-bold uppercase tracking-wide text-neutral-700 dark:text-neutral-300">
+          <ThemedText type="subtitle" className="mb-1 mt-8 text-neutral-900 dark:text-white">
             Settings
           </ThemedText>
 
           {/* Title */}
-          <ThemedText className="mb-1 mt-4 text-[13px] font-semibold uppercase tracking-wide opacity-60 text-neutral-700 dark:text-neutral-300">
+          <ThemedText className="mb-1 mt-4 text-[13px] font-semibold uppercase tracking-wide opacity-50 text-neutral-700 dark:text-neutral-300">
             Title
           </ThemedText>
           <TextInput
@@ -341,7 +341,7 @@ export default function ActivityDetailScreen() {
           />
 
           {/* Description */}
-          <ThemedText className="mb-1 mt-4 text-[13px] font-semibold uppercase tracking-wide opacity-60 text-neutral-700 dark:text-neutral-300">
+          <ThemedText className="mb-1 mt-4 text-[13px] font-semibold uppercase tracking-wide opacity-50 text-neutral-700 dark:text-neutral-300">
             Description
           </ThemedText>
           <TextInput
@@ -359,7 +359,7 @@ export default function ActivityDetailScreen() {
           />
 
           {/* Goal count */}
-          <ThemedText className="mb-1 mt-4 text-[13px] font-semibold uppercase tracking-wide opacity-60 text-neutral-700 dark:text-neutral-300">
+          <ThemedText className="mb-1 mt-4 text-[13px] font-semibold uppercase tracking-wide opacity-50 text-neutral-700 dark:text-neutral-300">
             Goal Count
           </ThemedText>
           <TextInput
@@ -374,7 +374,7 @@ export default function ActivityDetailScreen() {
           />
 
           {/* Stacked habit picker */}
-          <ThemedText className="mb-1 mt-4 text-[13px] font-semibold uppercase tracking-wide opacity-60 text-neutral-700 dark:text-neutral-300">
+          <ThemedText className="mb-1 mt-4 text-[13px] font-semibold uppercase tracking-wide opacity-50 text-neutral-700 dark:text-neutral-300">
             Stack With
           </ThemedText>
           <Pressable
@@ -433,7 +433,7 @@ export default function ActivityDetailScreen() {
                     {a.title}
                   </ThemedText>
                   <View className="rounded-full bg-black/10 px-1.5 py-0.5 dark:bg-white/10">
-                    <ThemedText className="text-[10px] font-semibold capitalize text-neutral-600 dark:text-neutral-400">
+                    <ThemedText className="text-[11px] font-semibold capitalize text-neutral-600 dark:text-neutral-400">
                       {a.period}
                     </ThemedText>
                   </View>
@@ -444,7 +444,7 @@ export default function ActivityDetailScreen() {
 
           {/* Error */}
           {error ? (
-            <ThemedText className="mt-4 text-center text-[13px] text-red-500">{error}</ThemedText>
+            <ThemedText className="mt-4 text-center text-[13px] text-red-600 dark:text-red-400">{error}</ThemedText>
           ) : null}
 
           {/* Save button */}
@@ -477,7 +477,7 @@ export default function ActivityDetailScreen() {
             disabled={archiving || saving || deleting}
             className={[
               'mt-3 items-center rounded-[12px] border border-black/10 bg-black/5 px-4 py-3 dark:border-white/10 dark:bg-white/10',
-              archiving || saving || deleting ? 'opacity-55' : 'opacity-100',
+              archiving || saving || deleting ? 'opacity-50' : 'opacity-100',
             ].join(' ')}
           >
             <ThemedText className="font-semibold text-neutral-900 dark:text-white">
@@ -497,7 +497,7 @@ export default function ActivityDetailScreen() {
             disabled={deleting || saving || archiving}
             className={[
               'mt-3 items-center rounded-[12px] border border-red-500/30 bg-red-500/10 px-4 py-3',
-              deleting || saving || archiving ? 'opacity-55' : 'opacity-100',
+              deleting || saving || archiving ? 'opacity-50' : 'opacity-100',
             ].join(' ')}
           >
             <ThemedText className="font-semibold text-red-600 dark:text-red-400">

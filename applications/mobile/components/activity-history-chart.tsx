@@ -40,7 +40,7 @@ export function ActivityHistoryChart({ history, goalCount, period }: Props) {
   if (history.length === 0) {
     return (
       <View className="items-center py-6">
-        <ThemedText className="text-[13px] opacity-60">No history data yet</ThemedText>
+        <ThemedText className="text-[13px] opacity-50">No history data yet</ThemedText>
       </View>
     );
   }
@@ -55,7 +55,7 @@ export function ActivityHistoryChart({ history, goalCount, period }: Props) {
 
   return (
     <View className="mt-6">
-      <ThemedText className="mb-2 text-[13px] font-semibold uppercase tracking-wide opacity-60 text-neutral-700 dark:text-neutral-300">
+      <ThemedText className="mb-2 text-[13px] font-semibold uppercase tracking-wide opacity-50 text-neutral-700 dark:text-neutral-300">
         History
       </ThemedText>
 
@@ -85,7 +85,7 @@ export function ActivityHistoryChart({ history, goalCount, period }: Props) {
                 <View key={i} className="flex-1 items-center">
                   <View className="w-full items-center">
                     {entry.count > 0 && (
-                      <ThemedText className="mb-0.5 text-[10px] font-medium opacity-60">
+                      <ThemedText className="mb-0.5 text-[11px] font-medium opacity-50">
                         {entry.count}
                       </ThemedText>
                     )}
@@ -112,7 +112,7 @@ export function ActivityHistoryChart({ history, goalCount, period }: Props) {
           <View className="mt-2 flex-row gap-1">
             {history.map((entry, i) => (
               <View key={i} className="flex-1 items-center">
-                <ThemedText className="text-[10px] opacity-50">
+                <ThemedText className="text-[11px] opacity-50">
                   {formatLabel(entry.startDate, period)}
                 </ThemedText>
               </View>
@@ -125,7 +125,7 @@ export function ActivityHistoryChart({ history, goalCount, period }: Props) {
       {goalCount > 0 && (
         <View className="mt-2 flex-row items-center justify-center gap-2">
           <View style={{ width: 16, height: 2, backgroundColor: goalLineColor }} />
-          <ThemedText className="text-[11px] opacity-60">Goal ({goalCount})</ThemedText>
+          <ThemedText className="text-[11px] opacity-50">Goal ({goalCount})</ThemedText>
         </View>
       )}
     </View>

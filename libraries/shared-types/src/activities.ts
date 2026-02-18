@@ -52,6 +52,7 @@ export interface ActivityCalendar {
   goalCount: number;
   createdAt: string;
   entries: ActivityHistoryEntry[];
+  completionDates?: string[];
 }
 
 export function isActivityPeriod(value: unknown): value is ActivityPeriod {

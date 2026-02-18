@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -62,7 +62,6 @@ export default function ActivityHistoryScreen() {
   const [chartLoading, setChartLoading] = useState(false);
 
   function prevMonth() {
-    setCalendarData(null);
     if (calMonth === 1) {
       setCalMonth(12);
       setCalYear((y) => y - 1);
@@ -72,7 +71,6 @@ export default function ActivityHistoryScreen() {
   }
 
   function nextMonth() {
-    setCalendarData(null);
     if (calMonth === 12) {
       setCalMonth(1);
       setCalYear((y) => y + 1);
@@ -86,7 +84,7 @@ export default function ActivityHistoryScreen() {
     'July', 'August', 'September', 'October', 'November', 'December',
   ];
 
-  async function handleGraphCalendar() {
+  const fetchCalendar = useCallback(async () => {
     setCalendarLoading(true);
     try {
       const data = await getActivityCalendar(activityId, calYear, calMonth);
@@ -96,9 +94,9 @@ export default function ActivityHistoryScreen() {
     } finally {
       setCalendarLoading(false);
     }
-  }
+  }, [activityId, calYear, calMonth]);
 
-  async function handleGraphChart() {
+  const fetchChart = useCallback(async () => {
     const count = Math.floor(Number(periodCount));
     if (!Number.isFinite(count) || count < 1 || count > 365) return;
 
@@ -111,7 +109,21 @@ export default function ActivityHistoryScreen() {
     } finally {
       setChartLoading(false);
     }
-  }
+  }, [activityId, periodCount]);
+
+  // Auto-load calendar when month/year changes
+  useEffect(() => {
+    if (viewMode === 'calendar') {
+      fetchCalendar();
+    }
+  }, [viewMode, fetchCalendar]);
+
+  // Auto-load chart when switching to chart mode
+  useEffect(() => {
+    if (viewMode === 'chart' && !chartData) {
+      fetchChart();
+    }
+  }, [viewMode]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const activePill = 'border-emerald-500 bg-emerald-500/10';
   const inactivePill =
@@ -164,17 +176,6 @@ export default function ActivityHistoryScreen() {
               </Pressable>
             </View>
 
-            {/* Graph it button */}
-            <Pressable
-              onPress={handleGraphCalendar}
-              disabled={calendarLoading}
-              className="mb-4 items-center rounded-[12px] bg-black/90 px-4 py-3 dark:bg-white/90"
-            >
-              <ThemedText lightColor="#ffffff" darkColor="#171717" className="font-semibold">
-                {calendarLoading ? 'Loading...' : 'Graph it'}
-              </ThemedText>
-            </Pressable>
-
             {/* Calendar heatmap */}
             {calendarLoading ? (
               <View className="items-center py-4">
@@ -187,7 +188,7 @@ export default function ActivityHistoryScreen() {
         ) : (
           <View>
             {/* Period count input */}
-            <ThemedText className="mb-1 text-[13px] font-semibold uppercase tracking-wide opacity-60 text-neutral-700 dark:text-neutral-300">
+            <ThemedText className="mb-1 text-[13px] font-semibold uppercase tracking-wide opacity-50 text-neutral-700 dark:text-neutral-300">
               Number of {PERIOD_LABELS[period] ?? 'periods'}
             </ThemedText>
             <TextInput
@@ -197,14 +198,14 @@ export default function ActivityHistoryScreen() {
               className="mb-4 rounded-[12px] border border-black/10 bg-black/5 px-3 py-2.5 text-[15px] text-neutral-900 dark:border-white/10 dark:bg-white/10 dark:text-white"
             />
 
-            {/* Graph it button */}
+            {/* Update button */}
             <Pressable
-              onPress={handleGraphChart}
+              onPress={fetchChart}
               disabled={chartLoading}
               className="mb-4 items-center rounded-[12px] bg-black/90 px-4 py-3 dark:bg-white/90"
             >
               <ThemedText lightColor="#ffffff" darkColor="#171717" className="font-semibold">
-                {chartLoading ? 'Loading...' : 'Graph it'}
+                {chartLoading ? 'Loading...' : 'Update'}
               </ThemedText>
             </Pressable>
 

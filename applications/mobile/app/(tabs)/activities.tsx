@@ -309,7 +309,7 @@ export default function ActivitiesScreen() {
                 Create activity
               </ThemedText>
 
-              <ThemedText className="mb-2 opacity-70 text-neutral-700 dark:text-neutral-300">
+              <ThemedText className="mb-2 opacity-75 text-neutral-700 dark:text-neutral-300">
                 Period:{' '}
                 <ThemedText className="font-semibold text-neutral-900 dark:text-white">
                   {capitalize(period)}
@@ -411,7 +411,7 @@ export default function ActivitiesScreen() {
                 </Pressable>
               ) : null}
 
-              <ThemedText className="mb-1 mt-3 text-[13px] font-semibold uppercase tracking-wide opacity-60 text-neutral-700 dark:text-neutral-300">
+              <ThemedText className="mb-1 mt-3 text-[13px] font-semibold uppercase tracking-wide opacity-50 text-neutral-700 dark:text-neutral-300">
                 Stack with (optional)
               </ThemedText>
               <Pressable
@@ -480,7 +480,7 @@ export default function ActivitiesScreen() {
                         {a.title}
                       </ThemedText>
                       <View className="rounded-full bg-black/10 px-1.5 py-0.5 dark:bg-white/10">
-                        <ThemedText className="text-[10px] font-semibold capitalize text-neutral-600 dark:text-neutral-400">
+                        <ThemedText className="text-[11px] font-semibold capitalize text-neutral-600 dark:text-neutral-400">
                           {a.period}
                         </ThemedText>
                       </View>
@@ -490,7 +490,7 @@ export default function ActivitiesScreen() {
               ) : null}
 
               {createError ? (
-                <ThemedText className="mt-2 text-[13px] text-red-500">{createError}</ThemedText>
+                <ThemedText className="mt-2 text-[13px] text-red-600 dark:text-red-400">{createError}</ThemedText>
               ) : null}
 
               <View className="mt-4 flex-row justify-end gap-2.5">
@@ -500,7 +500,7 @@ export default function ActivitiesScreen() {
                   className={[
                     'rounded-[12px] px-3.5 py-2.5',
                     'bg-black/5 dark:bg-white/10',
-                    saving ? 'opacity-60' : 'opacity-100',
+                    saving ? 'opacity-50' : 'opacity-100',
                   ].join(' ')}
                 >
                   <ThemedText className="text-neutral-900 dark:text-white">Cancel</ThemedText>
@@ -567,7 +567,7 @@ export default function ActivitiesScreen() {
             badge={item.task ? 'Task' : 'Habit'}
           >
             {item.description ? (
-              <ThemedText className="opacity-85 leading-5 text-neutral-700 dark:text-neutral-300">
+              <ThemedText className="opacity-75 leading-5 text-neutral-700 dark:text-neutral-300">
                 {item.description}
               </ThemedText>
             ) : null}

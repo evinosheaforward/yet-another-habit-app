@@ -29,7 +29,7 @@ export function ActivityCountControls({
           accessibilityRole="button"
           accessibilityLabel="Decrement count"
           className={[
-            'h-9 w-9 items-center justify-center rounded-full',
+            'h-11 w-11 items-center justify-center rounded-full',
             'border border-black/10 bg-black/5 dark:border-white/10 dark:bg-white/10',
             count <= 0 ? 'opacity-30' : 'opacity-100',
           ].join(' ')}
@@ -50,14 +50,14 @@ export function ActivityCountControls({
           }}
           accessibilityRole="button"
           accessibilityLabel="Increment count"
-          className="h-9 w-9 items-center justify-center rounded-full border border-black/10 bg-black/5 dark:border-white/10 dark:bg-white/10"
+          className="h-11 w-11 items-center justify-center rounded-full border border-black/10 bg-black/5 dark:border-white/10 dark:bg-white/10"
         >
           <ThemedText className="text-[18px] font-bold text-neutral-900 dark:text-white">
             +
           </ThemedText>
         </Pressable>
       </View>
-      <ThemedText className="mt-1 text-center text-[13px] opacity-60 text-neutral-700 dark:text-neutral-300">
+      <ThemedText className="mt-1 text-center text-[13px] opacity-50 text-neutral-700 dark:text-neutral-300">
         {completionPercent}%
       </ThemedText>
     </>

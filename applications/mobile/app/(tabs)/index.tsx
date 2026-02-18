@@ -1,6 +1,6 @@
 import { Image } from 'expo-image';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, Modal, Pressable, ScrollView, View } from 'react-native';
+import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Link, router } from 'expo-router';
 
 import ParallaxScrollView from '@/components/parallax-scroll-view';
@@ -26,12 +26,13 @@ export default function HomeScreen() {
   }, []);
 
   const tzOffsetMinutes = new Date().getTimezoneOffset(); // UTC = local + offset
-  const tzAbbreviation = Intl.DateTimeFormat('en-US', { timeZoneName: 'short' })
-    .formatToParts(new Date())
-    .find((p) => p.type === 'timeZoneName')?.value ?? '';
+  const tzAbbreviation =
+    Intl.DateTimeFormat('en-US', { timeZoneName: 'short' })
+      .formatToParts(new Date())
+      .find((p) => p.type === 'timeZoneName')?.value ?? '';
 
   function utcMinutesToLocalLabel(utcMinutes: number): string {
-    const localMinutes = ((utcMinutes - tzOffsetMinutes) % 1440 + 1440) % 1440;
+    const localMinutes = (((utcMinutes - tzOffsetMinutes) % 1440) + 1440) % 1440;
     const h = Math.floor(localMinutes / 60);
     const period = h < 12 ? 'AM' : 'PM';
     const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
@@ -42,7 +43,7 @@ export default function HomeScreen() {
     async (localHour: number) => {
       setShowDayEndPicker(false);
       const localMinutes = localHour * 60;
-      const utcMinutes = ((localMinutes + tzOffsetMinutes) % 1440 + 1440) % 1440;
+      const utcMinutes = (((localMinutes + tzOffsetMinutes) % 1440) + 1440) % 1440;
       try {
         const config = await updateUserConfig({ dayEndOffsetMinutes: utcMinutes });
         setDayEndOffsetMinutes(config.dayEndOffsetMinutes);
@@ -106,10 +107,10 @@ export default function HomeScreen() {
     <ParallaxScrollView
       headerBackgroundColor={{ light: '#0B1220', dark: '#0B1220' }}
       headerImage={
-        <View className="h-[240px] w-full overflow-hidden">
+        <View className="h-[200px] w-full overflow-hidden">
           <Image
-            source={require('@/assets/images/icon-partial.png')}
-            className="absolute inset-0"
+            source={require('@/assets/images/app-logo.png')}
+            style={StyleSheet.absoluteFill}
             contentFit="cover"
             transition={200}
           />
@@ -119,22 +120,22 @@ export default function HomeScreen() {
 
           {/* Branding */}
           <View className="flex-1 justify-end gap-1.5 px-[18px] pb-[18px]">
-            <ThemedText className="text-white/90 tracking-[0.3px]">
+            <Text className="text-[16px] leading-6 tracking-[0.3px] text-white/90">
               Yet Another Habit App
-            </ThemedText>
+            </Text>
 
-            <ThemedText type="title" className="text-white leading-[40px]">
+            <Text className="text-[32px] font-bold leading-[40px] text-white">
               Welcome, {displayName}
-            </ThemedText>
+            </Text>
 
-            <ThemedText className="max-w-[420px] text-white/85 leading-5">
-              Keep it simple. Track what matters. Build momentum.
-            </ThemedText>
+            <Text className="max-w-[420px] text-[16px] leading-5 text-white/85">
+              Track your habits, manage your todos, and reward yourself!
+            </Text>
           </View>
         </View>
       }
     >
-      <ThemedView className="gap-3.5 pb-7 pt-1">
+      <ThemedView className="gap-3.5 pb-2 pt-1">
         {/* Status / account */}
         <ThemedView className="gap-2.5 rounded-[18px] border border-black/10 bg-white p-4 dark:border-white/10 dark:bg-neutral-950">
           <ThemedText type="subtitle" className="mb-0.5 text-neutral-900 dark:text-white">
@@ -210,16 +211,16 @@ export default function HomeScreen() {
 
         <ThemedView className="mt-0.5">
           <Link href="/(tabs)/activities" asChild>
-              <Pressable
-                className="items-center justify-center rounded-[16px] border border-white/10 bg-black/15 px-4 py-[13px] dark:border-white/15 dark:bg-white/10"
-                style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}
-              >
-                <ThemedText type="defaultSemiBold" className="text-white/95">
-                  View activities
-                </ThemedText>
-              </Pressable>
-            </Link>
-        </ThemedView >
+            <Pressable
+              className="items-center justify-center rounded-[16px] border border-black/10 bg-black/10 px-4 py-[13px] dark:border-white/10 dark:bg-white/10"
+              style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}
+            >
+              <ThemedText type="defaultSemiBold" className="text-neutral-900 dark:text-white">
+                View activities
+              </ThemedText>
+            </Pressable>
+          </Link>
+        </ThemedView>
 
         {/* Logout */}
         <ThemedView className="mt-0.5">
@@ -228,8 +229,8 @@ export default function HomeScreen() {
             disabled={isSigningOut || isDeleting}
             className={[
               'items-center justify-center rounded-[16px] border px-4 py-[13px]',
-              'border-black/15 bg-black/8 dark:border-white/15',
-              isSigningOut || isDeleting ? 'opacity-55' : 'opacity-100',
+              'border-black/10 bg-black/5 dark:border-white/10',
+              isSigningOut || isDeleting ? 'opacity-50' : 'opacity-100',
             ].join(' ')}
             style={({ pressed }) => ({
               opacity: pressed && !isSigningOut && !isDeleting ? 0.85 : undefined,
@@ -249,7 +250,7 @@ export default function HomeScreen() {
             className={[
               'items-center justify-center rounded-[16px] border px-4 py-[13px]',
               'border-red-500/30 bg-red-500/10',
-              isDeleting || isSigningOut ? 'opacity-55' : 'opacity-100',
+              isDeleting || isSigningOut ? 'opacity-50' : 'opacity-100',
             ].join(' ')}
           >
             <ThemedText type="defaultSemiBold" className="text-red-600 dark:text-red-400">
@@ -260,7 +261,6 @@ export default function HomeScreen() {
 
         {/* Ad banner */}
         <BannerAdView />
-  
       </ThemedView>
     </ParallaxScrollView>
   );
