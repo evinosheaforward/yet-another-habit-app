@@ -1,92 +1,47 @@
-import type { Activity, ActivityHistoryEntry, ActivityPeriod } from '@yet-another-habit-app/shared-types';
-import { getApiBaseUrl } from '@/api/baseUrl';
-import { auth } from '@/auth/firebaseClient';
+import type {
+  Activity,
+  ActivityCalendar,
+  ActivityHistoryEntry,
+  ActivityPeriod,
+  CompletedAchievement,
+  UserConfig,
+} from '@yet-another-habit-app/shared-types';
+import { getAuthedContext, apiFetch } from '@/api/client';
 
 type CacheEntry = { data: Activity[]; fetchedAt: number };
-const cache: Partial<Record<ActivityPeriod, CacheEntry>> = {};
+const cache: Partial<Record<string, CacheEntry>> = {};
 const TTL_MS = 60_000; // 1 minute
-
-type AuthedContext = {
-  uid: string;
-  token: string;
-};
-
-async function getAuthedContext(): Promise<AuthedContext> {
-  const user = auth.currentUser;
-  if (!user) throw new Error('Not authenticated');
-  // Force refresh so backend sees the latest auth state/claims
-  const token = await user.getIdToken(true);
-  return { uid: user.uid, token };
-}
-
-function buildUrl(path: string, params?: Record<string, string>) {
-  const base = getApiBaseUrl().replace(/\/$/, '');
-  const url = new URL(`${base}${path}`);
-  if (params) {
-    for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
-  }
-  return url.toString();
-}
-
-async function apiFetch<T>(
-  method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE',
-  path: string,
-  options?: {
-    query?: Record<string, string>;
-    body?: unknown;
-    token?: string;
-  },
-): Promise<T> {
-  const url = buildUrl(path, options?.query);
-
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 10_000);
-
-  let resp: Response;
-  try {
-    resp = await fetch(url, {
-      method,
-      headers: {
-        Authorization: `Bearer ${options?.token ?? ''}`,
-        ...(options?.body ? { 'Content-Type': 'application/json' } : {}),
-      },
-      body: options?.body ? JSON.stringify(options.body) : undefined,
-      signal: controller.signal,
-    });
-  } finally {
-    clearTimeout(timer);
-  }
-
-  if (!resp.ok) {
-    // Prefer backend-provided message; fall back to status text
-    const text = await resp.text().catch(() => '');
-    throw new Error(text || `Request failed (${resp.status})`);
-  }
-
-  return (await resp.json()) as T;
-}
 
 function invalidateActivitiesCache(period?: ActivityPeriod) {
   if (period) {
     delete cache[period];
+    delete cache[`archived:${period}`];
     return;
   }
-  for (const key of Object.keys(cache) as ActivityPeriod[]) delete cache[key];
+  for (const key of Object.keys(cache)) delete cache[key];
 }
 
-export async function getActivities(period: ActivityPeriod, opts?: { force?: boolean }) {
+export async function getActivities(
+  period: ActivityPeriod,
+  opts?: { force?: boolean; archived?: boolean },
+) {
+  const archived = opts?.archived ?? false;
+  const cacheKey = archived ? `archived:${period}` : period;
   const now = Date.now();
-  const hit = cache[period];
+  const hit = cache[cacheKey];
   if (!opts?.force && hit && now - hit.fetchedAt < TTL_MS) return hit.data;
 
   const { uid, token } = await getAuthedContext();
 
+  const query: Record<string, string> = { period, userId: uid };
+  if (archived) query.archived = 'true';
+
   const json = await apiFetch<{ activities: Activity[] }>('GET', '/activities', {
     token,
-    query: { period, userId: uid },
+    query,
   });
 
-  cache[period] = { data: json.activities, fetchedAt: now };
+  cache[cacheKey] = { data: json.activities, fetchedAt: now };
   return json.activities;
 }
 
@@ -96,6 +51,8 @@ export async function createActivity(input: {
   period: ActivityPeriod;
   goalCount?: number;
   stackedActivityId?: string | null;
+  task?: boolean;
+  archiveTask?: boolean;
 }): Promise<Activity> {
   const title = input.title.trim();
   if (!title) throw new Error('Title is required.');
@@ -110,6 +67,8 @@ export async function createActivity(input: {
       period: input.period,
       goalCount: input.goalCount ?? 1,
       stackedActivityId: input.stackedActivityId ?? undefined,
+      task: input.task || undefined,
+      archiveTask: input.archiveTask || undefined,
       userId: uid,
     },
   });
@@ -120,7 +79,13 @@ export async function createActivity(input: {
 
 export async function updateActivity(
   activityId: string,
-  input: { title?: string; description?: string; goalCount?: number; stackedActivityId?: string | null },
+  input: {
+    title?: string;
+    description?: string;
+    goalCount?: number;
+    stackedActivityId?: string | null;
+    archived?: boolean;
+  },
 ): Promise<Activity> {
   const { token } = await getAuthedContext();
 
@@ -131,6 +96,14 @@ export async function updateActivity(
 
   invalidateActivitiesCache();
   return json.activity;
+}
+
+export async function archiveActivity(activityId: string): Promise<Activity> {
+  return updateActivity(activityId, { archived: true });
+}
+
+export async function unarchiveActivity(activityId: string): Promise<Activity> {
+  return updateActivity(activityId, { archived: false });
 }
 
 export async function getActivityHistory(
@@ -149,6 +122,19 @@ export async function getActivityHistory(
   );
 }
 
+export async function getActivityCalendar(
+  activityId: string,
+  year: number,
+  month: number,
+): Promise<ActivityCalendar> {
+  const { token } = await getAuthedContext();
+
+  return apiFetch<ActivityCalendar>('GET', `/activities/${activityId}/calendar`, {
+    token,
+    query: { year: String(year), month: String(month) },
+  });
+}
+
 export async function deleteActivity(activityId: string): Promise<void> {
   const { token } = await getAuthedContext();
 
@@ -161,6 +147,20 @@ export async function deleteAccount(): Promise<void> {
 
   await apiFetch<{ success: boolean }>('DELETE', '/account', { token });
   invalidateActivitiesCache();
+}
+
+// --- User config ---
+
+export async function getUserConfig(): Promise<UserConfig> {
+  const { token } = await getAuthedContext();
+  return apiFetch<UserConfig>('GET', '/user-config', { token });
+}
+
+export async function updateUserConfig(config: Partial<UserConfig>): Promise<UserConfig> {
+  const current = await getUserConfig();
+  const merged = { ...current, ...config };
+  const { token } = await getAuthedContext();
+  return apiFetch<UserConfig>('PUT', '/user-config', { token, body: merged });
 }
 
 // --- Debounced activity count updates ---
@@ -176,22 +176,23 @@ const DEBOUNCE_MS = 500;
 export async function updateActivityCount(
   activityId: string,
   delta: number,
-): Promise<{ count: number }> {
+): Promise<{ count: number; completedAchievements: CompletedAchievement[] }> {
   const { token } = await getAuthedContext();
 
-  const json = await apiFetch<{ count: number }>('POST', `/activities/${activityId}/history`, {
-    token,
-    body: { delta },
-  });
+  const json = await apiFetch<{ count: number; completedAchievements?: CompletedAchievement[] }>(
+    'POST',
+    `/activities/${activityId}/history`,
+    { token, body: { delta } },
+  );
 
   invalidateActivitiesCache();
-  return json;
+  return { count: json.count, completedAchievements: json.completedAchievements ?? [] };
 }
 
 export function debouncedUpdateActivityCount(
   activityId: string,
   delta: number,
-  onResult: (count: number) => void,
+  onResult: (count: number, completedAchievements: CompletedAchievement[]) => void,
   onError: (err: Error) => void,
 ): void {
   const existing = pendingDeltas.get(activityId);
@@ -212,11 +213,13 @@ export function debouncedUpdateActivityCount(
     try {
       const sign = accumulated > 0 ? 1 : -1;
       let lastCount = 0;
+      const allCompleted: CompletedAchievement[] = [];
       for (let i = 0; i < Math.abs(accumulated); i++) {
         const result = await updateActivityCount(activityId, sign);
         lastCount = result.count;
+        allCompleted.push(...result.completedAchievements);
       }
-      onResult(lastCount);
+      onResult(lastCount, allCompleted);
     } catch (err) {
       onError(err instanceof Error ? err : new Error(String(err)));
     }

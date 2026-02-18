@@ -1,5 +1,7 @@
-import type { Activity, ActivityHistoryEntry, ActivityPeriod } from "@yet-another-habit-app/shared-types";
+import type { Activity, ActivityCalendar, ActivityHistoryEntry, ActivityPeriod } from "@yet-another-habit-app/shared-types";
 import { db } from "./knex.js";
+import { getUserConfig } from "./userConfigsModel.js";
+import { removeDayConfigsByActivityId, removeDayConfigsByUserId } from "./todoDayConfigsModel.js";
 import { randomUUID } from "crypto";
 
 /**
@@ -7,11 +9,13 @@ import { randomUUID } from "crypto";
  */
 export function computePeriodStart(
   period: string,
-  now: Date = new Date()
+  now: Date = new Date(),
+  dayEndOffsetMinutes: number = 0,
 ): string {
-  const y = now.getUTCFullYear();
-  const m = now.getUTCMonth();
-  const d = now.getUTCDate();
+  const adjustedNow = new Date(now.getTime() - dayEndOffsetMinutes * 60_000);
+  const y = adjustedNow.getUTCFullYear();
+  const m = adjustedNow.getUTCMonth();
+  const d = adjustedNow.getUTCDate();
 
   const normalized = period.toLowerCase();
   if (normalized === "daily") {
@@ -19,7 +23,7 @@ export function computePeriodStart(
   }
   if (normalized === "weekly") {
     // ISO 8601: Monday = 1, Sunday = 7
-    const day = now.getUTCDay(); // 0=Sun, 1=Mon, ...
+    const day = adjustedNow.getUTCDay(); // 0=Sun, 1=Mon, ...
     const diff = day === 0 ? 6 : day - 1; // days since Monday
     const mon = new Date(Date.UTC(y, m, d - diff));
     return fmtDate(
@@ -38,9 +42,11 @@ function fmtDate(y: number, m: number, d: number): string {
 
 export async function getActivitiesForUser(
   userId: string,
-  period: ActivityPeriod
+  period: ActivityPeriod,
+  archived: boolean = false
 ): Promise<Activity[]> {
-  const startDate = computePeriodStart(period);
+  const { dayEndOffsetMinutes } = await getUserConfig(userId);
+  const startDate = computePeriodStart(period, new Date(), dayEndOffsetMinutes);
 
   const rows = await db("activities")
     .leftJoin("activities_history", function () {
@@ -59,9 +65,12 @@ export async function getActivitiesForUser(
       "activities.period",
       "activities.stacked_activity_id",
       "stacked.title as stacked_activity_title",
+      "activities.archived",
+      "activities.task",
+      "activities.archive_task",
       db.raw("COALESCE(activities_history.count, 0) as count"),
     ])
-    .where({ "activities.user_id": userId, "activities.period": period })
+    .where({ "activities.user_id": userId, "activities.period": period, "activities.archived": archived })
     .orderBy("activities.title", "asc");
 
   return rows.map(
@@ -74,6 +83,9 @@ export async function getActivitiesForUser(
       count: number;
       stacked_activity_id: string | null;
       stacked_activity_title: string | null;
+      archived: boolean | number;
+      task: boolean | number;
+      archive_task: boolean | number;
     }) => {
       const goalCount = Number(r.goal_count);
       const count = Number(r.count);
@@ -88,6 +100,9 @@ export async function getActivitiesForUser(
         period: r.period,
         stackedActivityId: r.stacked_activity_id ?? null,
         stackedActivityTitle: r.stacked_activity_title ?? null,
+        archived: !!r.archived,
+        task: !!r.task,
+        archiveTask: !!r.archive_task,
       };
     }
   );
@@ -101,6 +116,8 @@ export async function createActivityForUser(
     period: ActivityPeriod;
     goalCount: number;
     stackedActivityId?: string | null;
+    task?: boolean;
+    archiveTask?: boolean;
   }
 ): Promise<Activity> {
   const id = randomUUID();
@@ -113,6 +130,8 @@ export async function createActivityForUser(
     goal_count: input.goalCount,
     period: input.period,
     stacked_activity_id: input.stackedActivityId ?? null,
+    task: input.task ?? false,
+    archive_task: input.archiveTask ?? false,
   });
 
   const row = await db("activities")
@@ -125,6 +144,8 @@ export async function createActivityForUser(
       "activities.period",
       "activities.stacked_activity_id",
       "stacked.title as stacked_activity_title",
+      "activities.task",
+      "activities.archive_task",
     ])
     .where({ "activities.id": id, "activities.user_id": userId })
     .first();
@@ -143,6 +164,9 @@ export async function createActivityForUser(
     period: row.period,
     stackedActivityId: row.stacked_activity_id ?? null,
     stackedActivityTitle: row.stacked_activity_title ?? null,
+    archived: false,
+    task: !!row.task,
+    archiveTask: !!row.archive_task,
   };
 }
 
@@ -152,7 +176,8 @@ export async function updateActivityCount(
   period: string,
   delta: number
 ): Promise<number> {
-  const startDate = computePeriodStart(period);
+  const { dayEndOffsetMinutes } = await getUserConfig(userId);
+  const startDate = computePeriodStart(period, new Date(), dayEndOffsetMinutes);
   const id = randomUUID();
 
   // Verify the activity belongs to this user
@@ -173,6 +198,32 @@ export async function updateActivityCount(
     [id, activityId, userId, startDate, delta, delta]
   );
 
+  // Track individual completion dates for calendar heatmap
+  const adjustedNow = new Date(new Date().getTime() - dayEndOffsetMinutes * 60_000);
+  const completionDate = fmtDate(
+    adjustedNow.getUTCFullYear(),
+    adjustedNow.getUTCMonth(),
+    adjustedNow.getUTCDate(),
+  );
+
+  if (delta === 1) {
+    await db("activity_completion_dates").insert({
+      id: randomUUID(),
+      activity_id: activityId,
+      user_id: userId,
+      completion_date: completionDate,
+    });
+  } else if (delta === -1) {
+    // Delete one row matching this activity + date
+    const toDelete = await db("activity_completion_dates")
+      .where({ activity_id: activityId, completion_date: completionDate })
+      .select("id")
+      .first();
+    if (toDelete) {
+      await db("activity_completion_dates").where({ id: toDelete.id }).del();
+    }
+  }
+
   const row = await db("activities_history")
     .where({ activity_id: activityId, start_date: startDate })
     .first();
@@ -189,15 +240,17 @@ const DEFAULT_LIMITS: Record<string, number> = {
 export function generatePeriodStarts(
   period: string,
   count: number,
-  now: Date = new Date()
+  now: Date = new Date(),
+  dayEndOffsetMinutes: number = 0,
 ): string[] {
+  const adjustedNow = new Date(now.getTime() - dayEndOffsetMinutes * 60_000);
   const normalized = period.toLowerCase();
   const dates: string[] = [];
 
   for (let i = count - 1; i >= 0; i--) {
-    const y = now.getUTCFullYear();
-    const m = now.getUTCMonth();
-    const d = now.getUTCDate();
+    const y = adjustedNow.getUTCFullYear();
+    const m = adjustedNow.getUTCMonth();
+    const d = adjustedNow.getUTCDate();
 
     if (normalized === "daily") {
       const dt = new Date(Date.UTC(y, m, d - i));
@@ -205,7 +258,7 @@ export function generatePeriodStarts(
         fmtDate(dt.getUTCFullYear(), dt.getUTCMonth(), dt.getUTCDate())
       );
     } else if (normalized === "weekly") {
-      const day = now.getUTCDay();
+      const day = adjustedNow.getUTCDay();
       const diff = day === 0 ? 6 : day - 1;
       const monday = new Date(Date.UTC(y, m, d - diff - i * 7));
       dates.push(
@@ -242,7 +295,8 @@ export async function getActivityHistory(
 
   const period = (activity.period as string).toLowerCase();
   const count = limit ?? DEFAULT_LIMITS[period] ?? 7;
-  const dates = generatePeriodStarts(period, count);
+  const { dayEndOffsetMinutes } = await getUserConfig(userId);
+  const dates = generatePeriodStarts(period, count, new Date(), dayEndOffsetMinutes);
 
   const rows = await db("activities_history")
     .select("start_date", "count")
@@ -265,7 +319,7 @@ export async function getActivityHistory(
 export async function updateActivityForUser(
   activityId: string,
   userId: string,
-  updates: { title?: string; description?: string; goalCount?: number; stackedActivityId?: string | null }
+  updates: { title?: string; description?: string; goalCount?: number; stackedActivityId?: string | null; archived?: boolean }
 ): Promise<Activity | null> {
   const existing = await db("activities")
     .where({ id: activityId, user_id: userId })
@@ -278,12 +332,26 @@ export async function updateActivityForUser(
   if (updates.description !== undefined) patch.description = updates.description;
   if (updates.goalCount !== undefined) patch.goal_count = updates.goalCount;
   if (updates.stackedActivityId !== undefined) patch.stacked_activity_id = updates.stackedActivityId;
+  if (updates.archived !== undefined) patch.archived = updates.archived;
 
   if (Object.keys(patch).length > 0) {
     await db("activities").where({ id: activityId, user_id: userId }).update(patch);
   }
 
-  const startDate = computePeriodStart(existing.period);
+  // When archiving, remove any todo items and day configs referencing this activity
+  if (updates.archived === true) {
+    await db("todo_items").where({ activity_id: activityId }).del();
+    await removeDayConfigsByActivityId(activityId);
+  }
+
+  // When unarchiving a task, reset its history so it comes back incomplete
+  if (updates.archived === false && !!existing.task && !!existing.archived) {
+    await db("activities_history").where({ activity_id: activityId }).del();
+    await db("activity_completion_dates").where({ activity_id: activityId }).del();
+  }
+
+  const { dayEndOffsetMinutes } = await getUserConfig(userId);
+  const startDate = computePeriodStart(existing.period, new Date(), dayEndOffsetMinutes);
   const row = await db("activities")
     .leftJoin("activities_history", function () {
       this.on("activities.id", "=", "activities_history.activity_id").andOn(
@@ -301,6 +369,9 @@ export async function updateActivityForUser(
       "activities.period",
       "activities.stacked_activity_id",
       "stacked.title as stacked_activity_title",
+      "activities.archived",
+      "activities.task",
+      "activities.archive_task",
       db.raw("COALESCE(activities_history.count, 0) as count"),
     ])
     .where({ "activities.id": activityId })
@@ -323,6 +394,9 @@ export async function updateActivityForUser(
     period: row.period,
     stackedActivityId: row.stacked_activity_id ?? null,
     stackedActivityTitle: row.stacked_activity_title ?? null,
+    archived: !!row.archived,
+    task: !!row.task,
+    archiveTask: !!row.archive_task,
   };
 }
 
@@ -360,8 +434,16 @@ export async function deleteActivityForUser(
 
   if (!activity) return false;
 
+  // Delete todo items and day configs referencing this activity
+  await db("todo_items").where({ activity_id: activityId }).del();
+  await removeDayConfigsByActivityId(activityId);
+
+  // Orphan achievements that referenced this activity
+  await db("achievements").where({ activity_id: activityId }).update({ activity_id: null });
+
   // Delete history rows (FK has no CASCADE)
   await db("activities_history").where({ activity_id: activityId }).del();
+  await db("activity_completion_dates").where({ activity_id: activityId }).del();
 
   // Nullify stacked_activity_id references pointing to this activity
   await db("activities")
@@ -379,17 +461,112 @@ export async function deleteAllDataForUser(userId: string): Promise<void> {
     .where({ user_id: userId })
     .pluck("id");
 
+  await db("todo_items").where({ user_id: userId }).del();
+  await removeDayConfigsByUserId(userId);
+  await db("achievements").where({ user_id: userId }).del();
+
   if (activityIds.length > 0) {
     await db("activities_history").whereIn("activity_id", activityIds).del();
+    await db("activity_completion_dates").whereIn("activity_id", activityIds).del();
   }
 
   await db("activities").where({ user_id: userId }).del();
+  await db("user_configs").where({ user_id: userId }).del();
+}
+
+export async function getActivityCalendar(
+  activityId: string,
+  userId: string,
+  year: number,
+  month: number,
+): Promise<ActivityCalendar> {
+  const activity = await db("activities")
+    .where({ id: activityId, user_id: userId })
+    .first();
+
+  if (!activity) {
+    throw new Error("Activity not found");
+  }
+
+  const period = (activity.period as string).toLowerCase() as ActivityPeriod;
+  const goalCount = Number(activity.goal_count);
+  const createdAt = activity.created_at as string;
+
+  // month is 1-based from the API, Date.UTC needs 0-based
+  const monthIndex = month - 1;
+  const firstDay = new Date(Date.UTC(year, monthIndex, 1));
+  const lastDay = new Date(Date.UTC(year, monthIndex + 1, 0)); // last day of month
+
+  let startDates: string[];
+
+  if (period === "daily") {
+    // All dates in the month
+    startDates = [];
+    for (let d = 1; d <= lastDay.getUTCDate(); d++) {
+      startDates.push(fmtDate(year, monthIndex, d));
+    }
+  } else if (period === "weekly") {
+    // Find all Monday start dates whose week (Mon-Sun) overlaps the month
+    // Start from the Monday on or before the 1st
+    const firstDow = firstDay.getUTCDay(); // 0=Sun
+    const diffToMonday = firstDow === 0 ? 6 : firstDow - 1;
+    const firstMonday = new Date(Date.UTC(year, monthIndex, 1 - diffToMonday));
+
+    startDates = [];
+    const current = new Date(firstMonday);
+    while (true) {
+      const sunday = new Date(current.getTime() + 6 * 86400000);
+      // Week overlaps month if sunday >= firstDay and monday <= lastDay
+      if (current.getTime() > lastDay.getTime()) break;
+      if (sunday.getTime() >= firstDay.getTime()) {
+        startDates.push(
+          fmtDate(current.getUTCFullYear(), current.getUTCMonth(), current.getUTCDate())
+        );
+      }
+      current.setUTCDate(current.getUTCDate() + 7);
+    }
+  } else {
+    // Monthly: just the first of the requested month
+    startDates = [fmtDate(year, monthIndex, 1)];
+  }
+
+  const rows = await db("activities_history")
+    .select("start_date", "count")
+    .where({ activity_id: activityId })
+    .whereIn("start_date", startDates);
+
+  const entries: ActivityHistoryEntry[] = startDates.map((sd) => {
+    const row = rows.find((r: { start_date: string; count: number }) => r.start_date === sd);
+    return { startDate: sd, count: row ? Number(row.count) : 0 };
+  });
+
+  // For weekly/monthly periods, fetch individual completion dates for the calendar
+  if (period !== "daily") {
+    const firstDate = fmtDate(year, monthIndex, 1);
+    const lastDate = fmtDate(
+      lastDay.getUTCFullYear(),
+      lastDay.getUTCMonth(),
+      lastDay.getUTCDate(),
+    );
+    const completionRows = await db("activity_completion_dates")
+      .where({ activity_id: activityId })
+      .whereBetween("completion_date", [firstDate, lastDate])
+      .select("completion_date")
+      .orderBy("completion_date");
+
+    const completionDates = completionRows.map(
+      (r: { completion_date: string }) => r.completion_date,
+    );
+
+    return { period, goalCount, createdAt, entries, completionDates };
+  }
+
+  return { period, goalCount, createdAt, entries };
 }
 
 export async function validateStackTarget(
   targetId: string,
   userId: string,
-  requiredPeriod: string
 ): Promise<{ valid: boolean; error?: string }> {
   const target = await db("activities")
     .where({ id: targetId, user_id: userId })
@@ -397,10 +574,6 @@ export async function validateStackTarget(
 
   if (!target) {
     return { valid: false, error: "Stacked activity not found" };
-  }
-
-  if (target.period.toLowerCase() !== requiredPeriod.toLowerCase()) {
-    return { valid: false, error: "Stacked activity must have the same period" };
   }
 
   return { valid: true };

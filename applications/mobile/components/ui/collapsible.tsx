@@ -21,6 +21,9 @@ type CollapsibleProps = PropsWithChildren & {
 
   // 0..100 progress fill for the header row only
   progressPct?: number;
+
+  // Optional small badge shown next to the title
+  badge?: string;
 };
 
 function clampPct(v: number) {
@@ -34,6 +37,7 @@ export function Collapsible({
   isOpen,
   onToggle,
   progressPct = 0,
+  badge,
 }: CollapsibleProps) {
   const [internalOpen, setInternalOpen] = useState(false);
 
@@ -78,13 +82,22 @@ export function Collapsible({
           </Animated.View>
 
           <View className="flex-1 flex-row items-baseline justify-between gap-2.5">
-            <ThemedText
-              type="defaultSemiBold"
-              className="text-[16px] leading-5 text-neutral-900 dark:text-white"
-            >
-              {title}
-            </ThemedText>
-            <ThemedText className="text-[13px] opacity-65 text-neutral-700 dark:text-neutral-300">
+            <View className="flex-row items-center gap-1.5">
+              <ThemedText
+                type="defaultSemiBold"
+                className="text-[16px] leading-5 text-neutral-900 dark:text-white"
+              >
+                {title}
+              </ThemedText>
+              {badge ? (
+                <View className="rounded-full bg-emerald-500/15 px-2 py-0.5">
+                  <ThemedText className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">
+                    {badge}
+                  </ThemedText>
+                </View>
+              ) : null}
+            </View>
+            <ThemedText className="text-[13px] opacity-50 text-neutral-700 dark:text-neutral-300">
               {pct}%
             </ThemedText>
           </View>

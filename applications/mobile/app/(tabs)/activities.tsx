@@ -10,12 +10,20 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
-import { createActivity, getActivities, debouncedUpdateActivityCount } from '@/api/activities';
+import * as Haptics from 'expo-haptics';
+import {
+  createActivity,
+  getActivities,
+  debouncedUpdateActivityCount,
+  deleteActivity,
+  archiveActivity,
+} from '@/api/activities';
 
-import { ActivityCountControls } from '@/components/activity-count-controls';
 import { Collapsible } from '@/components/ui/collapsible';
+import { CelebrationModal } from '@/components/celebration-modal';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { useCelebration } from '@/hooks/use-celebration';
 
 import { Activity, ActivityPeriod } from '@yet-another-habit-app/shared-types';
 
@@ -25,6 +33,7 @@ function capitalize(s: string) {
 
 export default function ActivitiesScreen() {
   const router = useRouter();
+  const { current: celebrationAchievement, celebrate, dismiss: dismissCelebration } = useCelebration();
   const [period, setPeriod] = useState<ActivityPeriod>(ActivityPeriod.Daily);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [openId, setOpenId] = useState<string | null>(null);
@@ -35,6 +44,9 @@ export default function ActivitiesScreen() {
   const [newGoalCount, setNewGoalCount] = useState('');
   const [newStackedActivityId, setNewStackedActivityId] = useState<string | null>(null);
   const [showCreateStackPicker, setShowCreateStackPicker] = useState(false);
+  const [stackPickerActivities, setStackPickerActivities] = useState<Activity[]>([]);
+  const [isTask, setIsTask] = useState(false);
+  const [archiveTask, setArchiveTask] = useState(false);
   const [saving, setSaving] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
   const [fetchError, setFetchError] = useState<string | null>(null);
@@ -58,15 +70,18 @@ export default function ActivitiesScreen() {
       return;
     }
 
-    const rawGoal = newGoalCount.trim();
-    if (rawGoal === '' || !/^\d+$/.test(rawGoal)) {
-      setCreateError('Goal count must be a positive whole number.');
-      return;
-    }
-    const goalCount = Number(rawGoal);
-    if (goalCount < 1) {
-      setCreateError('Goal count must be at least 1.');
-      return;
+    let goalCount = 1;
+    if (!isTask) {
+      const rawGoal = newGoalCount.trim();
+      if (rawGoal === '' || !/^\d+$/.test(rawGoal)) {
+        setCreateError('Goal count must be a positive whole number.');
+        return;
+      }
+      goalCount = Number(rawGoal);
+      if (goalCount < 1) {
+        setCreateError('Goal count must be at least 1.');
+        return;
+      }
     }
 
     try {
@@ -77,6 +92,8 @@ export default function ActivitiesScreen() {
         period,
         goalCount,
         stackedActivityId: newStackedActivityId,
+        task: isTask || undefined,
+        archiveTask: isTask && archiveTask ? true : undefined,
       });
 
       setCreateOpen(false);
@@ -85,6 +102,9 @@ export default function ActivitiesScreen() {
       setNewGoalCount('');
       setNewStackedActivityId(null);
       setShowCreateStackPicker(false);
+      setStackPickerActivities([]);
+      setIsTask(false);
+      setArchiveTask(false);
       await refresh();
     } catch (e: any) {
       setCreateError(e?.message ?? 'Failed to create activity.');
@@ -126,6 +146,8 @@ export default function ActivitiesScreen() {
   }
 
   function handleDelta(activityId: string, delta: number) {
+    const activity = activities.find((a) => a.id === activityId);
+
     // Optimistic update
     setActivities((prev) =>
       prev.map((a) => {
@@ -137,10 +159,61 @@ export default function ActivitiesScreen() {
       }),
     );
 
+    // For tasks: auto-remove on completion
+    if (activity?.task && delta > 0 && activity.count + delta >= activity.goalCount) {
+      // Optimistically remove from list
+      setActivities((prev) => prev.filter((a) => a.id !== activityId));
+
+      debouncedUpdateActivityCount(
+        activityId,
+        delta,
+        async (_count, completedAchievements) => {
+          celebrate(completedAchievements);
+          try {
+            if (activity.archiveTask) {
+              await archiveActivity(activityId);
+            } else {
+              await deleteActivity(activityId);
+            }
+          } catch {
+            // Best effort — refresh will reconcile
+          }
+          refresh();
+
+          // Navigate to stacked activity
+          if (activity.stackedActivityId) {
+            const stacked = activities.find((a) => a.id === activity.stackedActivityId);
+            if (stacked) {
+              router.push({
+                pathname: '/activity/[id]',
+                params: {
+                  id: stacked.id,
+                  title: stacked.title,
+                  description: stacked.description,
+                  goalCount: String(stacked.goalCount),
+                  count: String(stacked.count),
+                  completionPercent: String(stacked.completionPercent),
+                  period: stacked.period,
+                  stackedActivityId: stacked.stackedActivityId ?? '',
+                  stackedActivityTitle: stacked.stackedActivityTitle ?? '',
+                  showStackPrompt: '1',
+                },
+              });
+            }
+          }
+        },
+        () => {
+          refresh();
+        },
+      );
+      return;
+    }
+
     debouncedUpdateActivityCount(
       activityId,
       delta,
-      () => {
+      (_count, completedAchievements) => {
+        celebrate(completedAchievements);
         refresh();
 
         // Navigate to stacked activity on increment
@@ -236,7 +309,7 @@ export default function ActivitiesScreen() {
                 Create activity
               </ThemedText>
 
-              <ThemedText className="mb-2 opacity-70 text-neutral-700 dark:text-neutral-300">
+              <ThemedText className="mb-2 opacity-75 text-neutral-700 dark:text-neutral-300">
                 Period:{' '}
                 <ThemedText className="font-semibold text-neutral-900 dark:text-white">
                   {capitalize(period)}
@@ -263,21 +336,99 @@ export default function ActivitiesScreen() {
                 className="mt-2 min-h-[90px] rounded-[12px] border border-black/10 bg-black/5 px-3 py-2.5 text-[15px] text-neutral-900 dark:border-white/10 dark:bg-white/10 dark:text-white"
               />
 
-              <TextInput
-                value={newGoalCount}
-                onChangeText={setNewGoalCount}
-                placeholder="Goal count (times per period)"
-                placeholderTextColor="#8E8E93"
-                editable={!saving}
-                keyboardType="number-pad"
-                className="mt-2 rounded-[12px] border border-black/10 bg-black/5 px-3 py-2.5 text-[15px] text-neutral-900 dark:border-white/10 dark:bg-white/10 dark:text-white"
-              />
+              {!isTask ? (
+                <TextInput
+                  value={newGoalCount}
+                  onChangeText={setNewGoalCount}
+                  placeholder="Goal count (times per period)"
+                  placeholderTextColor="#8E8E93"
+                  editable={!saving}
+                  keyboardType="number-pad"
+                  className="mt-2 rounded-[12px] border border-black/10 bg-black/5 px-3 py-2.5 text-[15px] text-neutral-900 dark:border-white/10 dark:bg-white/10 dark:text-white"
+                />
+              ) : null}
 
-              <ThemedText className="mb-1 mt-3 text-[13px] font-semibold uppercase tracking-wide opacity-60 text-neutral-700 dark:text-neutral-300">
+              <View>
+                <Pressable
+                  onPress={() => {
+                    setIsTask((v) => !v);
+                    if (!isTask) setArchiveTask(false);
+                  }}
+                  disabled={saving}
+                  className="mt-2 flex-row items-center justify-between rounded-[12px] border border-black/10 bg-black/5 px-3 py-2.5 dark:border-white/10 dark:bg-white/10"
+                >
+                  <ThemedText className="text-[15px] text-neutral-900 dark:text-white">
+                    One-off task
+                  </ThemedText>
+                  <View
+                    className={[
+                      'h-6 w-6 items-center justify-center rounded-full',
+                      isTask
+                        ? 'bg-emerald-600 dark:bg-emerald-500'
+                        : 'border border-black/20 bg-transparent dark:border-white/20',
+                    ].join(' ')}
+                  >
+                    {isTask ? (
+                      <ThemedText className="text-[13px] font-bold text-white">
+                        {'\u2713'}
+                      </ThemedText>
+                    ) : null}
+                  </View>
+                </Pressable>
+                <ThemedText
+                  className={[
+                    'mt-1 px-1 text-[12px] leading-4 text-neutral-700 dark:text-neutral-300',
+                    isTask ? 'font-semibold opacity-70' : 'opacity-50',
+                  ].join(' ')}
+                >
+                  (will be deleted/archived when complete)
+                </ThemedText>
+              </View>
+
+              {isTask ? (
+                <Pressable
+                  onPress={() => setArchiveTask((v) => !v)}
+                  disabled={saving}
+                  className="mt-2 flex-row items-center justify-between rounded-[12px] border border-black/10 bg-black/5 px-3 py-2.5 dark:border-white/10 dark:bg-white/10"
+                >
+                  <ThemedText className="text-[15px] text-neutral-900 dark:text-white">
+                    Archive instead of delete?
+                  </ThemedText>
+                  <View
+                    className={[
+                      'h-6 w-6 items-center justify-center rounded-full',
+                      archiveTask
+                        ? 'bg-emerald-600 dark:bg-emerald-500'
+                        : 'border border-black/20 bg-transparent dark:border-white/20',
+                    ].join(' ')}
+                  >
+                    {archiveTask ? (
+                      <ThemedText className="text-[13px] font-bold text-white">
+                        {'\u2713'}
+                      </ThemedText>
+                    ) : null}
+                  </View>
+                </Pressable>
+              ) : null}
+
+              <ThemedText className="mb-1 mt-3 text-[13px] font-semibold uppercase tracking-wide opacity-50 text-neutral-700 dark:text-neutral-300">
                 Stack with (optional)
               </ThemedText>
               <Pressable
-                onPress={() => setShowCreateStackPicker((v) => !v)}
+                onPress={() => {
+                  setShowCreateStackPicker((v) => {
+                    if (!v) {
+                      Promise.all([
+                        getActivities(ActivityPeriod.Daily),
+                        getActivities(ActivityPeriod.Weekly),
+                        getActivities(ActivityPeriod.Monthly),
+                      ])
+                        .then(([d, w, m]) => setStackPickerActivities([...d, ...w, ...m]))
+                        .catch(() => {});
+                    }
+                    return !v;
+                  });
+                }}
                 className="rounded-[12px] border border-black/10 bg-black/5 px-3 py-2.5 dark:border-white/10 dark:bg-white/10"
               >
                 <ThemedText
@@ -288,7 +439,9 @@ export default function ActivitiesScreen() {
                       : 'text-neutral-500 dark:text-neutral-400',
                   ].join(' ')}
                 >
-                  {activities.find((a) => a.id === newStackedActivityId)?.title ?? 'None'}
+                  {stackPickerActivities.find((a) => a.id === newStackedActivityId)?.title ??
+                    activities.find((a) => a.id === newStackedActivityId)?.title ??
+                    'None'}
                 </ThemedText>
               </Pressable>
               {showCreateStackPicker ? (
@@ -309,7 +462,7 @@ export default function ActivitiesScreen() {
                       None
                     </ThemedText>
                   </Pressable>
-                  {activities.map((a) => (
+                  {stackPickerActivities.map((a) => (
                     <Pressable
                       key={a.id}
                       onPress={() => {
@@ -317,7 +470,7 @@ export default function ActivitiesScreen() {
                         setShowCreateStackPicker(false);
                       }}
                       className={[
-                        'mt-1 rounded-[10px] border px-3 py-2',
+                        'mt-1 flex-row items-center gap-1.5 rounded-[10px] border px-3 py-2',
                         newStackedActivityId === a.id
                           ? 'border-emerald-500 bg-emerald-500/10'
                           : 'border-black/10 bg-black/5 dark:border-white/10 dark:bg-white/10',
@@ -326,13 +479,18 @@ export default function ActivitiesScreen() {
                       <ThemedText className="text-[14px] text-neutral-900 dark:text-white">
                         {a.title}
                       </ThemedText>
+                      <View className="rounded-full bg-black/10 px-1.5 py-0.5 dark:bg-white/10">
+                        <ThemedText className="text-[11px] font-semibold capitalize text-neutral-600 dark:text-neutral-400">
+                          {a.period}
+                        </ThemedText>
+                      </View>
                     </Pressable>
                   ))}
                 </View>
               ) : null}
 
               {createError ? (
-                <ThemedText className="mt-2 text-[13px] text-red-500">{createError}</ThemedText>
+                <ThemedText className="mt-2 text-[13px] text-red-600 dark:text-red-400">{createError}</ThemedText>
               ) : null}
 
               <View className="mt-4 flex-row justify-end gap-2.5">
@@ -342,7 +500,7 @@ export default function ActivitiesScreen() {
                   className={[
                     'rounded-[12px] px-3.5 py-2.5',
                     'bg-black/5 dark:bg-white/10',
-                    saving ? 'opacity-60' : 'opacity-100',
+                    saving ? 'opacity-50' : 'opacity-100',
                   ].join(' ')}
                 >
                   <ThemedText className="text-neutral-900 dark:text-white">Cancel</ThemedText>
@@ -368,7 +526,10 @@ export default function ActivitiesScreen() {
           <ThemedText className="text-[13px] text-red-600 dark:text-red-400">
             {fetchError}
           </ThemedText>
-          <Pressable onPress={refresh} className="mt-2 rounded-full bg-black/10 px-3 py-1.5 dark:bg-white/10">
+          <Pressable
+            onPress={refresh}
+            className="mt-2 rounded-full bg-black/10 px-3 py-1.5 dark:bg-white/10"
+          >
             <ThemedText className="text-[13px] font-semibold text-neutral-900 dark:text-white">
               Retry
             </ThemedText>
@@ -403,56 +564,65 @@ export default function ActivitiesScreen() {
             progressPct={item.completionPercent}
             isOpen={openId === item.id}
             onToggle={() => toggleActivity(item.id)}
+            badge={item.task ? 'Task' : 'Habit'}
           >
             {item.description ? (
-              <ThemedText className="opacity-85 leading-5 text-neutral-700 dark:text-neutral-300">
+              <ThemedText className="opacity-75 leading-5 text-neutral-700 dark:text-neutral-300">
                 {item.description}
               </ThemedText>
             ) : null}
 
             {item.stackedActivityTitle ? (
               <ThemedText className="mt-1.5 text-[13px] font-semibold text-emerald-600 dark:text-emerald-400">
-                Next up: {item.stackedActivityTitle}
+                Followed by: {item.stackedActivityTitle}
               </ThemedText>
             ) : null}
 
-            <View className="mt-2.5">
-              <ActivityCountControls
-                count={item.count}
-                goalCount={item.goalCount}
-                completionPercent={item.completionPercent}
-                onIncrement={() => handleDelta(item.id, 1)}
-                onDecrement={() => handleDelta(item.id, -1)}
-              />
-            </View>
-
             <Pressable
-              onPress={() =>
-                router.push({
-                  pathname: '/activity/[id]',
-                  params: {
-                    id: item.id,
-                    title: item.title,
-                    description: item.description,
-                    goalCount: String(item.goalCount),
-                    count: String(item.count),
-                    completionPercent: String(item.completionPercent),
-                    period: item.period,
-                    stackedActivityId: item.stackedActivityId ?? '',
-                    stackedActivityTitle: item.stackedActivityTitle ?? '',
-                  },
-                })
-              }
+              onPress={() => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                handleDelta(item.id, 1);
+              }}
               accessibilityRole="button"
-              className="mt-3 items-center rounded-[10px] border border-black/10 bg-black/5 px-3 py-2 dark:border-white/10 dark:bg-white/10"
+              className="mt-2.5 flex-row items-center justify-center gap-2 rounded-[10px] bg-emerald-600 px-4 py-2.5 dark:bg-emerald-500"
             >
-              <ThemedText className="text-[13px] font-semibold text-neutral-900 dark:text-white">
-                Details
+              <ThemedText className="text-[14px] font-semibold text-white">
+                {item.completionPercent >= 100 ? '\u2713' : `${item.count} / ${item.goalCount}`}
               </ThemedText>
+              <ThemedText className="text-[14px] font-semibold text-white">Complete</ThemedText>
             </Pressable>
+
+            {!item.task ? (
+              <Pressable
+                onPress={() =>
+                  router.push({
+                    pathname: '/activity/[id]',
+                    params: {
+                      id: item.id,
+                      title: item.title,
+                      description: item.description,
+                      goalCount: String(item.goalCount),
+                      count: String(item.count),
+                      completionPercent: String(item.completionPercent),
+                      period: item.period,
+                      stackedActivityId: item.stackedActivityId ?? '',
+                      stackedActivityTitle: item.stackedActivityTitle ?? '',
+                    },
+                  })
+                }
+                accessibilityRole="button"
+                className="mt-3 items-center rounded-[10px] border border-black/10 bg-black/5 px-3 py-2 dark:border-white/10 dark:bg-white/10"
+              >
+                <ThemedText className="text-[13px] font-semibold text-neutral-900 dark:text-white">
+                  Details
+                </ThemedText>
+              </Pressable>
+            ) : null}
           </Collapsible>
         )}
       />
+
+      <CelebrationModal achievement={celebrationAchievement} onDismiss={dismissCelebration} />
     </ThemedView>
   );
 }

@@ -1,6 +1,6 @@
 import { Image } from 'expo-image';
 import { useState } from 'react';
-import { Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Link, router } from 'expo-router';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 
@@ -35,10 +35,10 @@ export default function LoginScreen() {
      <ParallaxScrollView
       headerBackgroundColor={{ light: '#0B1220', dark: '#0B1220' }}
       headerImage={
-        <View className="h-[240px] w-full overflow-hidden">
+        <View className="h-[200px] w-full overflow-hidden">
           <Image
-            source={require('@/assets/images/icon-partial.png')}
-            className="absolute inset-0"
+            source={require('@/assets/images/app-logo.png')}
+            style={StyleSheet.absoluteFill}
             contentFit="cover"
             transition={200}
           />
@@ -46,16 +46,15 @@ export default function LoginScreen() {
           {/* Readability overlay */}
           <View className="absolute inset-0 bg-[#0B1220]/55" />
 
-
           {/* Branding */}
           <View className="flex-1 justify-end gap-1.5 px-[18px] pb-[18px]">
-            <ThemedText type="title" className="text-white leading-[40px]">
-                Yet Another Habit App
-            </ThemedText>
+            <Text className="text-[32px] font-bold leading-[40px] text-white">
+              Yet Another Habit App
+            </Text>
 
-            <ThemedText className="max-w-[420px] text-white/85 leading-5">
+            <Text className="max-w-[420px] text-[16px] leading-5 text-white/85">
               Keep it simple. Track what matters. Build momentum.
-            </ThemedText>
+            </Text>
           </View>
         </View>
       }
@@ -65,7 +64,7 @@ export default function LoginScreen() {
           <ThemedText type="title" className="mt-1 text-neutral-900 dark:text-white">
             Welcome back
           </ThemedText>
-          <ThemedText className="mb-3 opacity-80 text-neutral-700 dark:text-neutral-300">
+          <ThemedText className="mb-3 opacity-75 text-neutral-700 dark:text-neutral-300">
             Log in to continue.
           </ThemedText>
 
@@ -94,7 +93,7 @@ export default function LoginScreen() {
             />
 
             {error ? (
-              <ThemedText className="-mt-1 text-[13px] text-red-500">{error}</ThemedText>
+              <ThemedText className="-mt-1 text-[13px] text-red-600 dark:text-red-400">{error}</ThemedText>
             ) : null}
 
             <TouchableOpacity
@@ -113,7 +112,7 @@ export default function LoginScreen() {
             </TouchableOpacity>
 
             <ThemedView className="mt-2 flex-row items-center justify-center gap-2">
-              <ThemedText className="opacity-80 text-neutral-700 dark:text-neutral-300">
+              <ThemedText className="opacity-75 text-neutral-700 dark:text-neutral-300">
                 New here?
               </ThemedText>
 

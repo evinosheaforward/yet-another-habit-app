@@ -73,6 +73,39 @@ export default function TabLayout() {
           ),
         }}
       />
+      <Tabs.Screen
+        name="todo"
+        options={{
+          title: 'Todo',
+          tabBarIcon: ({
+            color,
+          }: Parameters<NonNullable<BottomTabNavigationOptions['tabBarIcon']>>[0]) => (
+            <IconSymbol size={28} name="list.bullet" color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="achievements"
+        options={{
+          title: 'Achievements',
+          tabBarIcon: ({
+            color,
+          }: Parameters<NonNullable<BottomTabNavigationOptions['tabBarIcon']>>[0]) => (
+            <IconSymbol size={28} name="trophy.fill" color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="archive"
+        options={{
+          title: 'Archive',
+          tabBarIcon: ({
+            color,
+          }: Parameters<NonNullable<BottomTabNavigationOptions['tabBarIcon']>>[0]) => (
+            <IconSymbol size={28} name="archivebox.fill" color={color} />
+          ),
+        }}
+      />
     </Tabs>
   );
 }
