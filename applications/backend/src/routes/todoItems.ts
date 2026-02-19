@@ -13,6 +13,13 @@ import {
   removeDayConfig,
   reorderDayConfigs,
 } from "../db/todoDayConfigsModel";
+import {
+  getDateConfigs,
+  addDateConfig,
+  removeDateConfig,
+  reorderDateConfigs,
+  getScheduledDates,
+} from "../db/todoDateConfigsModel";
 import { checkTodoAchievements } from "../db/achievementsModel";
 import { computePeriodStart } from "../db/activitiesModel";
 import { getUserConfig } from "../db/userConfigsModel";
@@ -166,6 +173,89 @@ router.put("/todo-day-configs/reorder", async (req: Request, res: Response) => {
     const message = err instanceof Error ? err.message : "Failed to reorder";
     return res.status(400).json({ error: message });
   }
+});
+
+// --- Date config routes ---
+
+router.get("/todo-date-configs", async (req: Request, res: Response) => {
+  const authedUid = req.auth?.uid;
+  if (!authedUid) return res.status(401).json({ error: "Not authenticated" });
+
+  const date = req.query.date as string | undefined;
+  if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    return res.status(400).json({ error: "date must be YYYY-MM-DD" });
+  }
+
+  const configs = await getDateConfigs(authedUid, date);
+  return res.json({ configs });
+});
+
+router.post("/todo-date-configs", async (req: Request, res: Response) => {
+  const authedUid = req.auth?.uid;
+  if (!authedUid) return res.status(401).json({ error: "Not authenticated" });
+
+  const { date, activityId } = req.body ?? {};
+  if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    return res.status(400).json({ error: "date must be YYYY-MM-DD" });
+  }
+  if (typeof activityId !== "string" || activityId.length === 0) {
+    return res.status(400).json({ error: "activityId is required" });
+  }
+
+  try {
+    const config = await addDateConfig(authedUid, date, activityId);
+    return res.status(201).json({ config });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Failed to add date config";
+    return res.status(400).json({ error: message });
+  }
+});
+
+router.get("/todo-date-configs/dates", async (req: Request, res: Response) => {
+  const authedUid = req.auth?.uid;
+  if (!authedUid) return res.status(401).json({ error: "Not authenticated" });
+
+  const year = Number(req.query.year);
+  const month = Number(req.query.month);
+  if (!Number.isInteger(year) || !Number.isInteger(month) || month < 1 || month > 12) {
+    return res.status(400).json({ error: "year and month (1-12) are required" });
+  }
+
+  const dates = await getScheduledDates(authedUid, year, month);
+  return res.json({ dates });
+});
+
+router.put("/todo-date-configs/reorder", async (req: Request, res: Response) => {
+  const authedUid = req.auth?.uid;
+  if (!authedUid) return res.status(401).json({ error: "Not authenticated" });
+
+  const { date, orderedIds } = req.body ?? {};
+  if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    return res.status(400).json({ error: "date must be YYYY-MM-DD" });
+  }
+  if (!Array.isArray(orderedIds) || orderedIds.some((id: unknown) => typeof id !== "string")) {
+    return res.status(400).json({ error: "orderedIds must be an array of strings" });
+  }
+
+  try {
+    await reorderDateConfigs(authedUid, date, orderedIds);
+    return res.json({ success: true });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Failed to reorder";
+    return res.status(400).json({ error: message });
+  }
+});
+
+router.delete("/todo-date-configs/:id", async (req: Request, res: Response) => {
+  const authedUid = req.auth?.uid;
+  if (!authedUid) return res.status(401).json({ error: "Not authenticated" });
+
+  const deleted = await removeDateConfig(req.params.id, authedUid);
+  if (!deleted) {
+    return res.status(404).json({ error: "Date config not found" });
+  }
+
+  return res.json({ success: true });
 });
 
 export default router;

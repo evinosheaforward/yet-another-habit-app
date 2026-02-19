@@ -12,6 +12,9 @@ const messages: Record<string, string> = {
   'auth/weak-password': 'Password must be at least 6 characters.',
   'auth/operation-not-allowed': 'Email/password sign-up is not enabled.',
 
+  // Password reset
+  'auth/missing-email': 'Please enter your email address.',
+
   // Network
   'auth/network-request-failed': 'Network error. Check your connection and try again.',
 };

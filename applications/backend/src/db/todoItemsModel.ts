@@ -4,6 +4,7 @@ import { randomUUID } from "crypto";
 import { computePeriodStart } from "./activitiesModel.js";
 import { getUserConfig, getLastPopulatedDate, setLastPopulatedDate } from "./userConfigsModel.js";
 import { getDayConfigs } from "./todoDayConfigsModel.js";
+import { getDateConfigs, removeDateConfigsForDate } from "./todoDateConfigsModel.js";
 
 export async function getTodoItemsForUser(userId: string): Promise<TodoItem[]> {
   const rows = await db("todo_items")
@@ -124,58 +125,67 @@ export async function populateTodoForToday(userId: string): Promise<TodoItem[]> 
   const dayOfWeek = adjustedNow.getUTCDay(); // 0=Sun .. 6=Sat
 
   const dayConfigs = await getDayConfigs(userId, dayOfWeek);
+  const dateConfigs = await getDateConfigs(userId, today);
+
+  // Merge both sources into a unified list of activity IDs
+  const allConfigs = [
+    ...dayConfigs.map((c) => ({ activityId: c.activityId, activityTask: c.activityTask })),
+    ...dateConfigs.map((c) => ({ activityId: c.activityId, activityTask: c.activityTask })),
+  ];
 
   if (config.clearTodoOnNewDay) {
-    // Clear mode: wipe everything, insert configured habits
+    // Clear mode: wipe everything, insert from schedule
     await db("todo_items").where({ user_id: userId }).del();
 
-    for (let i = 0; i < dayConfigs.length; i++) {
+    for (let i = 0; i < allConfigs.length; i++) {
       await db("todo_items").insert({
         id: randomUUID(),
         user_id: userId,
-        activity_id: dayConfigs[i].activityId,
+        activity_id: allConfigs[i].activityId,
         sort_order: i,
       });
     }
   } else {
-    // Keep mode: remove old habits (non-task items), keep tasks
-    // Get current items with task info
+    // Keep mode: preserve ALL existing items, only append new scheduled items
     const currentItems = await db("todo_items")
-      .join("activities", "todo_items.activity_id", "activities.id")
-      .select(["todo_items.id", "activities.task"])
-      .where({ "todo_items.user_id": userId })
-      .orderBy("todo_items.sort_order", "asc");
+      .where({ user_id: userId })
+      .select("activity_id");
 
-    // Delete non-task items
-    const nonTaskIds = currentItems
-      .filter((item: { id: string; task: boolean | number }) => !item.task)
-      .map((item: { id: string }) => item.id);
+    const existingActivityIds = new Set(
+      currentItems.map((item: { activity_id: string }) => item.activity_id),
+    );
 
-    if (nonTaskIds.length > 0) {
-      await db("todo_items").whereIn("id", nonTaskIds).del();
+    const maxRow = await db("todo_items")
+      .where({ user_id: userId })
+      .max("sort_order as maxOrder")
+      .first();
+
+    let nextOrder = (maxRow?.maxOrder ?? -1) + 1;
+
+    for (const cfg of allConfigs) {
+      if (!existingActivityIds.has(cfg.activityId)) {
+        await db("todo_items").insert({
+          id: randomUUID(),
+          user_id: userId,
+          activity_id: cfg.activityId,
+          sort_order: nextOrder++,
+        });
+      }
     }
+  }
 
-    // Re-index remaining tasks 0..N-1
-    const remainingTasks = currentItems
-      .filter((item: { id: string; task: boolean | number }) => !!item.task)
-      .map((item: { id: string }) => item.id);
+  // One-shot cleanup: date configs are always one-shot
+  await removeDateConfigsForDate(userId, today);
 
-    for (let i = 0; i < remainingTasks.length; i++) {
-      await db("todo_items")
-        .where({ id: remainingTasks[i] })
-        .update({ sort_order: i });
-    }
-
-    // Append configured habits starting at N
-    const startOrder = remainingTasks.length;
-    for (let i = 0; i < dayConfigs.length; i++) {
-      await db("todo_items").insert({
-        id: randomUUID(),
-        user_id: userId,
-        activity_id: dayConfigs[i].activityId,
-        sort_order: startOrder + i,
-      });
-    }
+  // Day configs for tasks are one-shot — remove them after population
+  const taskDayConfigs = dayConfigs.filter((c) => c.activityTask);
+  if (taskDayConfigs.length > 0) {
+    await db("todo_day_configs")
+      .whereIn(
+        "id",
+        taskDayConfigs.map((c) => c.id),
+      )
+      .del();
   }
 
   await setLastPopulatedDate(userId, today);

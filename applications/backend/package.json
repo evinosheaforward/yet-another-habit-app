@@ -14,7 +14,8 @@
     "migrate": "npm run knex -- migrate:latest --knexfile knexfile.ts",
     "migrate:rollback": "npm run knex -- migrate:rollback --knexfile knexfile.ts",
     "migrate:status": "npm run knex -- migrate:status --knexfile knexfile.ts",
-    "seed": "npm run knex -- seed:run --knexfile knexfile.ts"
+    "seed": "npm run knex -- seed:run --knexfile knexfile.ts",
+    "test": "vitest run"
   },
   "dependencies": {
     "@yet-another-habit-app/shared-types": "^0.1.0",
@@ -33,6 +34,7 @@
     "dotenv": "^17.2.3",
     "ts-node": "^10.9.2",
     "tsx": "^4.21.0",
-    "typescript": "^5.5.0"
+    "typescript": "^5.5.0",
+    "vitest": "^4.0.18"
   }
 }

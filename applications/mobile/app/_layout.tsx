@@ -4,7 +4,8 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { View } from 'react-native';
 import { useColorScheme as useNativeWindColorScheme } from 'nativewind';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -15,7 +16,8 @@ export const unstable_settings = {
   anchor: '(tabs)',
 };
 
-export default function RootLayout() {
+function RootLayoutInner() {
+  const insets = useSafeAreaInsets();
   const colorScheme = useColorScheme();
   const { setColorScheme } = useNativeWindColorScheme();
 
@@ -25,23 +27,29 @@ export default function RootLayout() {
   }, [colorScheme, setColorScheme]);
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-        <SafeAreaProvider>
-          <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
-            <Stack>
-              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-              <Stack.Screen name="activity/[id]" options={{ title: 'Activity Details' }} />
-              <Stack.Screen name="achievement/[id]" options={{ title: 'Achievement' }} />
-              <Stack.Screen name="activity/history" options={{ title: 'Activity History' }} />
-              <Stack.Screen name="todo-settings" options={{ title: 'Todo Settings' }} />
-              <Stack.Screen name="privacy-policy" options={{ title: 'Privacy Policy' }} />
-            </Stack>
-          </SafeAreaView>
-        </SafeAreaProvider>
+    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+      <View style={{ flex: 1, paddingTop: insets.top, paddingBottom: insets.bottom }}>
+        <Stack>
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen name="activity/[id]" options={{ title: 'Activity Details' }} />
+          <Stack.Screen name="achievement/[id]" options={{ title: 'Achievement' }} />
+          <Stack.Screen name="activity/history" options={{ title: 'Activity History' }} />
+          <Stack.Screen name="todo-settings" options={{ title: 'Todo Settings' }} />
+          <Stack.Screen name="privacy-policy" options={{ title: 'Privacy Policy' }} />
+        </Stack>
+      </View>
 
-        <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
-      </ThemeProvider>
+      <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
+    </ThemeProvider>
+  );
+}
+
+export default function RootLayout() {
+  return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
+        <RootLayoutInner />
+      </SafeAreaProvider>
     </GestureHandlerRootView>
   );
 }
