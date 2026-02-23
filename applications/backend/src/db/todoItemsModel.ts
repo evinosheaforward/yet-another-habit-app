@@ -8,6 +8,7 @@ import { getDayConfigs } from "./todoDayConfigsModel.js";
 export async function getTodoItemsForUser(userId: string): Promise<TodoItem[]> {
   const rows = await db("todo_items")
     .join("activities", "todo_items.activity_id", "activities.id")
+    .leftJoin("activities as stacked", "activities.stacked_activity_id", "stacked.id")
     .select([
       "todo_items.id",
       "todo_items.activity_id",
@@ -15,6 +16,8 @@ export async function getTodoItemsForUser(userId: string): Promise<TodoItem[]> {
       "activities.period as activity_period",
       "activities.task as activity_task",
       "activities.archive_task as activity_archive_task",
+      "activities.stacked_activity_id",
+      "stacked.title as stacked_activity_title",
       "todo_items.sort_order",
     ])
     .where({ "todo_items.user_id": userId })
@@ -28,6 +31,8 @@ export async function getTodoItemsForUser(userId: string): Promise<TodoItem[]> {
       activity_period: string;
       activity_task: boolean | number;
       activity_archive_task: boolean | number;
+      stacked_activity_id: string | null;
+      stacked_activity_title: string | null;
       sort_order: number;
     }) => ({
       id: r.id,
@@ -36,6 +41,8 @@ export async function getTodoItemsForUser(userId: string): Promise<TodoItem[]> {
       activityPeriod: r.activity_period as TodoItem["activityPeriod"],
       activityTask: !!r.activity_task,
       activityArchiveTask: !!r.activity_archive_task,
+      stackedActivityId: r.stacked_activity_id ?? null,
+      stackedActivityTitle: r.stacked_activity_title ?? null,
       sortOrder: r.sort_order,
     }),
   );
@@ -49,6 +56,16 @@ export async function addTodoItem(userId: string, activityId: string): Promise<T
 
   if (!activity) {
     throw new Error("Activity not found or is archived");
+  }
+
+  // Fetch stacked activity title if stacked
+  let stackedActivityTitle: string | null = null;
+  if (activity.stacked_activity_id) {
+    const stacked = await db("activities")
+      .where({ id: activity.stacked_activity_id })
+      .select("title")
+      .first();
+    stackedActivityTitle = stacked?.title ?? null;
   }
 
   const maxRow = await db("todo_items")
@@ -73,6 +90,8 @@ export async function addTodoItem(userId: string, activityId: string): Promise<T
     activityPeriod: activity.period,
     activityTask: !!activity.task,
     activityArchiveTask: !!activity.archive_task,
+    stackedActivityId: activity.stacked_activity_id ?? null,
+    stackedActivityTitle,
     sortOrder,
   };
 }

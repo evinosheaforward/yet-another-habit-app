@@ -1,12 +1,13 @@
 import { useCallback, useState } from 'react';
-import { FlatList, Modal, Pressable, Switch, View } from 'react-native';
+import { Pressable, Switch, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import * as Haptics from 'expo-haptics';
 import DraggableFlatList, {
   ScaleDecorator,
   RenderItemParams,
 } from 'react-native-draggable-flatlist';
 
-import { getActivities, getUserConfig, updateUserConfig } from '@/api/activities';
+import { createActivity, getActivities, getUserConfig, updateUserConfig } from '@/api/activities';
 import { addTodoItem } from '@/api/todoItems';
 import {
   getDayConfigs,
@@ -15,6 +16,7 @@ import {
   reorderDayConfigs,
 } from '@/api/todoDayConfigs';
 
+import { ActivityPickerModal } from '@/components/activity-picker-modal';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 
@@ -86,9 +88,7 @@ export default function TodoSettingsScreen() {
         getActivities(ActivityPeriod.Weekly, { force: true }),
         getActivities(ActivityPeriod.Monthly, { force: true }),
       ]);
-      // Filter out tasks
-      const habits = [...daily, ...weekly, ...monthly].filter((a) => !a.task);
-      setAllActivities(habits);
+      setAllActivities([...daily, ...weekly, ...monthly]);
     } catch {
       setAllActivities([]);
     }
@@ -98,6 +98,7 @@ export default function TodoSettingsScreen() {
     try {
       const config = await addDayConfig(selectedDay, activityId);
       setConfigs((prev) => [...prev, config]);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
       // If configuring today's day of week, also add to the active todo list
       if (selectedDay === new Date().getDay()) {
@@ -109,6 +110,27 @@ export default function TodoSettingsScreen() {
       }
     } catch {
       // best effort
+    }
+  }
+
+  async function handleCreateTask(title: string) {
+    const activity = await createActivity({
+      title,
+      period: ActivityPeriod.Daily,
+      goalCount: 1,
+      task: true,
+      archiveTask: false,
+    });
+    const config = await addDayConfig(selectedDay, activity.id);
+    setConfigs((prev) => [...prev, config]);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+    if (selectedDay === new Date().getDay()) {
+      try {
+        await addTodoItem(activity.id);
+      } catch {
+        // best effort — may already be in the todo list
+      }
     }
   }
 
@@ -267,75 +289,14 @@ export default function TodoSettingsScreen() {
         }
       />
 
-      {/* Add habit picker modal */}
-      <Modal
+      <ActivityPickerModal
         visible={pickerOpen}
-        animationType="fade"
-        transparent
-        onRequestClose={() => setPickerOpen(false)}
-      >
-        <View className="flex-1 justify-end bg-black/50">
-          <ThemedView className="rounded-t-[20px] border-t border-black/10 bg-white p-4 dark:border-white/10 dark:bg-neutral-950">
-            <View className="flex-row items-center justify-between mb-3">
-              <ThemedText type="subtitle" className="text-neutral-900 dark:text-white">
-                Add Habit to {DAY_LABELS[selectedDay]}
-              </ThemedText>
-              <Pressable
-                onPress={() => setPickerOpen(false)}
-                className="rounded-full bg-black/10 px-3 py-1.5 dark:bg-white/10"
-              >
-                <ThemedText className="text-[13px] font-semibold text-neutral-900 dark:text-white">
-                  Close
-                </ThemedText>
-              </Pressable>
-            </View>
-
-            <FlatList
-              data={allActivities}
-              keyExtractor={(a) => a.id}
-              style={{ maxHeight: 400 }}
-              ItemSeparatorComponent={() => <View style={{ height: 6 }} />}
-              ListEmptyComponent={
-                <View className="items-center py-8">
-                  <ThemedText className="text-[14px] opacity-50 text-neutral-700 dark:text-neutral-300">
-                    No habits found
-                  </ThemedText>
-                </View>
-              }
-              renderItem={({ item: activity }) => (
-                <Pressable
-                  onPress={() => handleAdd(activity.id)}
-                  className="flex-row items-center rounded-[12px] border border-black/10 bg-black/5 px-3 py-2.5 dark:border-white/10 dark:bg-white/10"
-                >
-                  <View className="flex-1 flex-row flex-wrap items-center gap-1.5">
-                    <ThemedText className="text-[14px] font-medium text-neutral-900 dark:text-white">
-                      {activity.title}
-                    </ThemedText>
-                    <View
-                      className={[
-                        'rounded-full px-2 py-0.5',
-                        PERIOD_COLORS[activity.period] ?? 'bg-black/10',
-                      ].join(' ')}
-                    >
-                      <ThemedText
-                        className={[
-                          'text-[11px] font-semibold',
-                          PERIOD_TEXT_COLORS[activity.period] ?? 'text-neutral-600',
-                        ].join(' ')}
-                      >
-                        {capitalize(activity.period)}
-                      </ThemedText>
-                    </View>
-                  </View>
-                  <ThemedText className="text-[18px] text-indigo-500 dark:text-indigo-400">
-                    +
-                  </ThemedText>
-                </Pressable>
-              )}
-            />
-          </ThemedView>
-        </View>
-      </Modal>
+        onClose={() => setPickerOpen(false)}
+        title={`Add to ${DAY_LABELS[selectedDay]}`}
+        activities={allActivities}
+        onAdd={handleAdd}
+        onCreateTask={handleCreateTask}
+      />
     </ThemedView>
   );
 }

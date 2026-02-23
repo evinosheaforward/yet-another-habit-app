@@ -1,14 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  Animated as RNAnimated,
-  FlatList,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  Pressable,
-  TextInput,
-  View,
-} from 'react-native';
+import { Animated as RNAnimated, Pressable, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import * as Haptics from 'expo-haptics';
 import DraggableFlatList, {
@@ -32,6 +23,7 @@ import {
   populateTodoItems,
 } from '@/api/todoItems';
 
+import { ActivityPickerModal } from '@/components/activity-picker-modal';
 import { CelebrationModal } from '@/components/celebration-modal';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
@@ -65,6 +57,12 @@ export default function TodoScreen() {
   const [allActivities, setAllActivities] = useState<Activity[]>([]);
   const [fetchError, setFetchError] = useState<string | null>(null);
 
+  // Stacked habit prompt
+  const [stackPrompt, setStackPrompt] = useState<{
+    activityId: string;
+    activityTitle: string;
+  } | null>(null);
+
   // "Added!" toast
   const [addedToast, setAddedToast] = useState(false);
   const toastOpacity = useRef(new RNAnimated.Value(0)).current;
@@ -80,11 +78,6 @@ export default function TodoScreen() {
       return () => clearTimeout(timer);
     }
   }, [addedToast, toastOpacity]);
-
-  // Inline create task form
-  const [showCreateForm, setShowCreateForm] = useState(false);
-  const [newTaskTitle, setNewTaskTitle] = useState('');
-  const [creatingTask, setCreatingTask] = useState(false);
 
   const refresh = useCallback(async () => {
     try {
@@ -120,6 +113,7 @@ export default function TodoScreen() {
     try {
       const item = await addTodoItem(activityId);
       setItems((prev) => [...prev, item]);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       setAddedToast(true);
       setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 100);
     } catch {
@@ -167,6 +161,14 @@ export default function TodoScreen() {
         }
         celebrate(allCompleted);
         refresh();
+
+        // Trigger stacked habit prompt if applicable
+        if (item.stackedActivityId && item.stackedActivityTitle) {
+          setStackPrompt({
+            activityId: item.stackedActivityId,
+            activityTitle: item.stackedActivityTitle,
+          });
+        }
       },
       () => {
         refresh();
@@ -174,30 +176,50 @@ export default function TodoScreen() {
     );
   }
 
-  async function handleCreateTask() {
-    const title = newTaskTitle.trim();
-    if (!title) return;
+  function handleStackComplete() {
+    if (!stackPrompt) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    debouncedUpdateActivityCount(
+      stackPrompt.activityId,
+      1,
+      (_count, achievements) => {
+        celebrate(achievements);
+        refresh();
+      },
+      () => {
+        refresh();
+      },
+    );
+    setStackPrompt(null);
+  }
 
+  async function handleStackAddToTodo() {
+    if (!stackPrompt) return;
     try {
-      setCreatingTask(true);
-      const activity = await createActivity({
-        title,
-        period: ActivityPeriod.Daily,
-        goalCount: 1,
-        task: true,
-        archiveTask: false,
-      });
-      const item = await addTodoItem(activity.id);
+      const item = await addTodoItem(stackPrompt.activityId);
       setItems((prev) => [...prev, item]);
-      setNewTaskTitle('');
-      setShowCreateForm(false);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       setAddedToast(true);
       setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 100);
     } catch {
       // best effort
-    } finally {
-      setCreatingTask(false);
     }
+    setStackPrompt(null);
+  }
+
+  async function handleCreateTask(title: string) {
+    const activity = await createActivity({
+      title,
+      period: ActivityPeriod.Daily,
+      goalCount: 1,
+      task: true,
+      archiveTask: false,
+    });
+    const item = await addTodoItem(activity.id);
+    setItems((prev) => [...prev, item]);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setAddedToast(true);
+    setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 100);
   }
 
   function handleDragEnd({ data }: { data: TodoItem[] }) {
@@ -358,154 +380,49 @@ export default function TodoScreen() {
         }
       />
 
-      {/* Picker modal */}
-      <Modal
+      <ActivityPickerModal
         visible={pickerOpen}
-        animationType="fade"
-        transparent
-        onRequestClose={() => setPickerOpen(false)}
-      >
-        <View className="flex-1 justify-end bg-black/50">
-          <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-            <ThemedView className="rounded-t-[20px] border-t border-black/10 bg-white p-4 dark:border-white/10 dark:bg-neutral-950">
-              <View className="flex-row items-center justify-between mb-3">
-                <ThemedText type="subtitle" className="text-neutral-900 dark:text-white">
-                  Add to Todo List
-                </ThemedText>
-                <Pressable
-                  onPress={() => {
-                    setPickerOpen(false);
-                    setShowCreateForm(false);
-                    setNewTaskTitle('');
-                  }}
-                  className="rounded-full bg-black/10 px-3 py-1.5 dark:bg-white/10"
-                >
-                  <ThemedText className="text-[13px] font-semibold text-neutral-900 dark:text-white">
-                    Close
-                  </ThemedText>
-                </Pressable>
-              </View>
+        onClose={() => setPickerOpen(false)}
+        title="Add to Todo List"
+        activities={allActivities}
+        onAdd={handleAdd}
+        onCreateTask={handleCreateTask}
+      />
 
-              {/* Create new task inline */}
-              {!showCreateForm ? (
-                <Pressable
-                  onPress={() => setShowCreateForm(true)}
-                  className="mb-3 flex-row items-center rounded-[12px] border border-dashed border-black/20 bg-black/5 px-3 py-2.5 dark:border-white/20 dark:bg-white/10"
-                >
-                  <ThemedText className="text-[14px] font-semibold text-indigo-600 dark:text-indigo-400">
-                    + Create new task
-                  </ThemedText>
-                </Pressable>
-              ) : (
-                <View className="mb-3 rounded-[12px] border border-indigo-500/30 bg-indigo-500/5 p-3 dark:border-indigo-400/30 dark:bg-indigo-400/5">
-                  <TextInput
-                    value={newTaskTitle}
-                    onChangeText={setNewTaskTitle}
-                    placeholder="Task title"
-                    placeholderTextColor="#8E8E93"
-                    editable={!creatingTask}
-                    className="rounded-[10px] border border-black/10 bg-white px-3 py-2 text-[15px] text-neutral-900 dark:border-white/10 dark:bg-neutral-900 dark:text-white"
-                    autoFocus
-                  />
-                  <View className="mt-2 flex-row gap-2">
-                    <Pressable
-                      onPress={() => {
-                        setShowCreateForm(false);
-                        setNewTaskTitle('');
-                      }}
-                      disabled={creatingTask}
-                      className="rounded-[10px] bg-black/5 px-3 py-2 dark:bg-white/10"
-                    >
-                      <ThemedText className="text-[13px] text-neutral-900 dark:text-white">
-                        Cancel
-                      </ThemedText>
-                    </Pressable>
-                    <Pressable
-                      onPress={handleCreateTask}
-                      disabled={creatingTask || !newTaskTitle.trim()}
-                      className={[
-                        'rounded-[10px] px-3 py-2',
-                        newTaskTitle.trim()
-                          ? 'bg-indigo-600 dark:bg-indigo-500'
-                          : 'bg-black/10 dark:bg-white/10',
-                      ].join(' ')}
-                    >
-                      <ThemedText
-                        className={[
-                          'text-[13px] font-semibold',
-                          newTaskTitle.trim()
-                            ? 'text-white'
-                            : 'text-neutral-400 dark:text-neutral-500',
-                        ].join(' ')}
-                      >
-                        {creatingTask ? 'Creating...' : 'Create & Add'}
-                      </ThemedText>
-                    </Pressable>
-                  </View>
-                </View>
-              )}
-
-              {/* Activities list */}
-              <FlatList
-                data={allActivities}
-                keyExtractor={(a) => a.id}
-                style={{ maxHeight: 350 }}
-                ItemSeparatorComponent={() => <View style={{ height: 6 }} />}
-                ListEmptyComponent={
-                  <View className="items-center py-8">
-                    <ThemedText className="text-[14px] opacity-50 text-neutral-700 dark:text-neutral-300">
-                      No activities found
-                    </ThemedText>
-                  </View>
-                }
-                renderItem={({ item: activity }) => (
-                  <Pressable
-                    onPress={() => handleAdd(activity.id)}
-                    className="flex-row items-center rounded-[12px] border border-black/10 bg-black/5 px-3 py-2.5 dark:border-white/10 dark:bg-white/10"
-                  >
-                    <View className="flex-1 flex-row flex-wrap items-center gap-1.5">
-                      <ThemedText className="text-[14px] font-medium text-neutral-900 dark:text-white">
-                        {activity.title}
-                      </ThemedText>
-                      <View
-                        className={[
-                          'rounded-full px-2 py-0.5',
-                          PERIOD_COLORS[activity.period] ?? 'bg-black/10',
-                        ].join(' ')}
-                      >
-                        <ThemedText
-                          className={[
-                            'text-[11px] font-semibold',
-                            PERIOD_TEXT_COLORS[activity.period] ?? 'text-neutral-600',
-                          ].join(' ')}
-                        >
-                          {capitalize(activity.period)}
-                        </ThemedText>
-                      </View>
-                      {activity.task ? (
-                        <View className="rounded-full bg-orange-500/20 px-2 py-0.5">
-                          <ThemedText className="text-[11px] font-semibold text-orange-600 dark:text-orange-400">
-                            Task
-                          </ThemedText>
-                        </View>
-                      ) : (
-                        <View className="rounded-full bg-emerald-500/15 px-2 py-0.5">
-                          <ThemedText className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">
-                            Habit
-                          </ThemedText>
-                        </View>
-                      )}
-                    </View>
-                    <ThemedText className="text-[18px] text-indigo-500 dark:text-indigo-400">
-                      +
-                    </ThemedText>
-                  </Pressable>
-                )}
-              />
-            </ThemedView>
-          </KeyboardAvoidingView>
+      {/* Stacked habit prompt */}
+      {stackPrompt ? (
+        <View className="absolute bottom-6 left-4 right-4 rounded-[14px] border border-emerald-500/30 bg-emerald-500/10 p-3 dark:border-emerald-400/30 dark:bg-emerald-400/10">
+          <ThemedText className="mb-2 text-center text-[14px] font-semibold text-emerald-700 dark:text-emerald-300">
+            Stacked habit: {stackPrompt.activityTitle}
+          </ThemedText>
+          <View className="flex-row justify-center gap-2">
+            <Pressable
+              onPress={handleStackComplete}
+              className="rounded-[10px] bg-emerald-600 px-3 py-2 dark:bg-emerald-500"
+            >
+              <ThemedText className="text-[13px] font-semibold text-white">
+                Complete it now
+              </ThemedText>
+            </Pressable>
+            <Pressable
+              onPress={handleStackAddToTodo}
+              className="rounded-[10px] bg-indigo-600 px-3 py-2 dark:bg-indigo-500"
+            >
+              <ThemedText className="text-[13px] font-semibold text-white">
+                Add to todo list
+              </ThemedText>
+            </Pressable>
+            <Pressable
+              onPress={() => setStackPrompt(null)}
+              className="rounded-[10px] bg-black/10 px-3 py-2 dark:bg-white/10"
+            >
+              <ThemedText className="text-[13px] font-semibold text-neutral-900 dark:text-white">
+                Close
+              </ThemedText>
+            </Pressable>
+          </View>
         </View>
-      </Modal>
+      ) : null}
 
       {/* "Added!" toast */}
       {addedToast ? (

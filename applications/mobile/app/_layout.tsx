@@ -8,6 +8,7 @@ import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { useColorScheme as useNativeWindColorScheme } from 'nativewind';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import { IntegrityGate } from '@/components/integrity-gate';
 // Importing firebaseClient eagerly ensures auth + emulator are initialized at module load
 import '@/auth/firebaseClient';
 
@@ -28,16 +29,18 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
         <SafeAreaProvider>
-          <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
-            <Stack>
-              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-              <Stack.Screen name="activity/[id]" options={{ title: 'Activity Details' }} />
-              <Stack.Screen name="achievement/[id]" options={{ title: 'Achievement' }} />
-              <Stack.Screen name="activity/history" options={{ title: 'Activity History' }} />
-              <Stack.Screen name="todo-settings" options={{ title: 'Todo Settings' }} />
-              <Stack.Screen name="privacy-policy" options={{ title: 'Privacy Policy' }} />
-            </Stack>
-          </SafeAreaView>
+          <IntegrityGate>
+            <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
+              <Stack>
+                <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                <Stack.Screen name="activity/[id]" options={{ title: 'Activity Details' }} />
+                <Stack.Screen name="achievement/[id]" options={{ title: 'Achievement' }} />
+                <Stack.Screen name="activity/history" options={{ title: 'Activity History' }} />
+                <Stack.Screen name="todo-settings" options={{ title: 'Todo Settings' }} />
+                <Stack.Screen name="privacy-policy" options={{ title: 'Privacy Policy' }} />
+              </Stack>
+            </SafeAreaView>
+          </IntegrityGate>
         </SafeAreaProvider>
 
         <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
