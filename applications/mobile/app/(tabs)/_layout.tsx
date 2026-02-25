@@ -8,6 +8,7 @@ import { HapticTab } from '@/components/haptic-tab';
 import { IconSymbol } from '@/components/ui/icon-symbol';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { useOnboardingTarget } from '@/onboarding/useOnboardingTarget';
+import { useOnboarding } from '@/onboarding/OnboardingProvider';
 
 const THEME = {
   light: {
@@ -28,8 +29,9 @@ function ActivitiesTabIcon({
   color,
 }: Parameters<NonNullable<BottomTabNavigationOptions['tabBarIcon']>>[0]) {
   const ref = useOnboardingTarget('activities-tab');
+  const { advanceStep } = useOnboarding();
   return (
-    <View ref={ref}>
+    <View ref={ref} onTouchEnd={advanceStep}>
       <IconSymbol size={28} name="paperplane.fill" color={color} />
     </View>
   );
@@ -39,8 +41,9 @@ function TodoTabIcon({
   color,
 }: Parameters<NonNullable<BottomTabNavigationOptions['tabBarIcon']>>[0]) {
   const ref = useOnboardingTarget('todo-tab');
+  const { advanceStep } = useOnboarding();
   return (
-    <View ref={ref}>
+    <View ref={ref} onTouchEnd={advanceStep}>
       <IconSymbol size={28} name="list.bullet" color={color} />
     </View>
   );
@@ -50,8 +53,9 @@ function AchievementsTabIcon({
   color,
 }: Parameters<NonNullable<BottomTabNavigationOptions['tabBarIcon']>>[0]) {
   const ref = useOnboardingTarget('achievements-tab');
+  const { advanceStep } = useOnboarding();
   return (
-    <View ref={ref}>
+    <View ref={ref} onTouchEnd={advanceStep}>
       <IconSymbol size={28} name="trophy.fill" color={color} />
     </View>
   );

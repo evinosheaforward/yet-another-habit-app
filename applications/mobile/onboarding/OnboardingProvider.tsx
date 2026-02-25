@@ -19,7 +19,7 @@ type OnboardingContextValue = {
   unregisterTarget: (key: string) => void;
   advanceStep: () => void;
   skipSection: () => void;
-  triggerHook: (hookId: string) => void;
+  triggerHook: (hookId: string) => boolean;
   isOnboardingActive: boolean;
 };
 
@@ -28,7 +28,7 @@ const OnboardingContext = createContext<OnboardingContextValue>({
   unregisterTarget: () => {},
   advanceStep: () => {},
   skipSection: () => {},
-  triggerHook: () => {},
+  triggerHook: () => false,
   isOnboardingActive: false,
 });
 
@@ -46,6 +46,22 @@ function normalizeScreen(path: string): string {
   let p = path.replace(/\/\([^)]+\)/g, ''); // strip (tabs) or any group
   p = p.replace(/\/index$/, '');
   return p || '/';
+}
+
+/**
+ * Compare a current path against a step screen, supporting dynamic segments.
+ *  "/activity/abc123" matches "/activity/[id]"
+ */
+function screensMatch(currentPath: string, stepScreen: string): boolean {
+  const current = normalizeScreen(currentPath);
+  const step = normalizeScreen(stepScreen);
+  if (current === step) return true;
+  const bracketIdx = step.indexOf('/[');
+  if (bracketIdx >= 0) {
+    const prefix = step.substring(0, bracketIdx + 1);
+    return current.startsWith(prefix);
+  }
+  return false;
 }
 
 export function OnboardingProvider({ children }: { children: React.ReactNode }) {
@@ -125,13 +141,17 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
       return;
     }
 
-    const currentNorm = normalizeScreen(pathname);
-    const stepNorm = normalizeScreen(activeStep.screen);
-
-    if (currentNorm !== stepNorm) {
+    if (!screensMatch(pathname, activeStep.screen)) {
       setTargetLayout(null);
 
+      // If the step uses a dynamic route (e.g. /activity/[id]), the external caller
+      // is responsible for navigating — we can't construct the URL ourselves.
+      if (activeStep.screen.includes('/[')) {
+        return;
+      }
+
       // If we're on a stack screen and need to go to a tab screen, dismiss first
+      const currentNorm = normalizeScreen(pathname);
       const TAB_PATHS = ['/', '/activities', '/todo', '/achievements', '/archive'];
       const stepIsTab = activeStep.screen.startsWith('/(tabs)');
       const currentIsStack = !TAB_PATHS.includes(currentNorm);
@@ -202,13 +222,15 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
   }, [activeStep, markComplete]);
 
   const triggerHook = useCallback(
-    (hookId: string) => {
+    (hookId: string): boolean => {
       const step = ONBOARDING_STEPS.find(
         (s) => s.hookTrigger === hookId && !completedSteps.has(s.id),
       );
       if (step) {
         setHookStep(step);
+        return true;
       }
+      return false;
     },
     [completedSteps],
   );

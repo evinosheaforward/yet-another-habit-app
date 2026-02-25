@@ -35,14 +35,18 @@ function capitalize(s: string) {
 
 export default function ActivitiesScreen() {
   const router = useRouter();
-  const { current: celebrationAchievement, celebrate, dismiss: dismissCelebration } = useCelebration();
+  const {
+    current: celebrationAchievement,
+    celebrate,
+    dismiss: dismissCelebration,
+  } = useCelebration();
   const [period, setPeriod] = useState<ActivityPeriod>(ActivityPeriod.Daily);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [openId, setOpenId] = useState<string | null>(null);
   const createBtnRef = useOnboardingTarget('create-activity-btn');
   const stackingInfoRef = useOnboardingTarget('stacking-info');
   const historyBtnRef = useOnboardingTarget('history-btn');
-  const { advanceStep } = useOnboarding();
+  const { advanceStep, triggerHook } = useOnboarding();
 
   const [createOpen, setCreateOpen] = useState(false);
   const [newTitle, setNewTitle] = useState('');
@@ -92,7 +96,7 @@ export default function ActivitiesScreen() {
 
     try {
       setSaving(true);
-      await createActivity({
+      const created = await createActivity({
         title,
         description: newDescription.trim(),
         period,
@@ -112,6 +116,24 @@ export default function ActivitiesScreen() {
       setIsTask(false);
       setArchiveTask(false);
       await refresh();
+
+      const hookTriggered = triggerHook('first-habit-created');
+      if (hookTriggered) {
+        router.push({
+          pathname: '/activity/[id]',
+          params: {
+            id: created.id,
+            title: created.title,
+            description: created.description ?? '',
+            goalCount: String(created.goalCount),
+            count: String(created.count),
+            completionPercent: String(created.completionPercent),
+            period: created.period,
+            stackedActivityId: created.stackedActivityId ?? '',
+            stackedActivityTitle: created.stackedActivityTitle ?? '',
+          },
+        });
+      }
     } catch (e: any) {
       setCreateError(e?.message ?? 'Failed to create activity.');
     } finally {
@@ -279,11 +301,6 @@ export default function ActivitiesScreen() {
 
       {/* Onboarding anchors */}
       <View className="mt-2 flex-row items-center justify-between">
-        <View ref={stackingInfoRef}>
-          <ThemedText className="text-[12px] opacity-50 text-neutral-500 dark:text-neutral-400">
-            Stack habits to build routines
-          </ThemedText>
-        </View>
         <View ref={historyBtnRef}>
           <ThemedText className="text-[12px] opacity-50 text-neutral-500 dark:text-neutral-400">
             Tap an activity for history
@@ -514,7 +531,9 @@ export default function ActivitiesScreen() {
               ) : null}
 
               {createError ? (
-                <ThemedText className="mt-2 text-[13px] text-red-600 dark:text-red-400">{createError}</ThemedText>
+                <ThemedText className="mt-2 text-[13px] text-red-600 dark:text-red-400">
+                  {createError}
+                </ThemedText>
               ) : null}
 
               <View className="mt-4 flex-row justify-end gap-2.5">

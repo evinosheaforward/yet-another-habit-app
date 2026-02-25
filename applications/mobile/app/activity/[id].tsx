@@ -32,6 +32,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useCelebration } from '@/hooks/use-celebration';
 import { useOnboarding } from '@/onboarding/OnboardingProvider';
+import { useOnboardingTarget } from '@/onboarding/useOnboardingTarget';
 
 export default function ActivityDetailScreen() {
   const router = useRouter();
@@ -51,6 +52,7 @@ export default function ActivityDetailScreen() {
 
   const { current: celebrationAchievement, celebrate, dismiss: dismissCelebration } = useCelebration();
   const { triggerHook } = useOnboarding();
+  const detailedHistoryRef = useOnboardingTarget('detailed-history-btn');
   const activityId = params.id;
   const initialGoalCount = Number(params.goalCount) || 1;
 
@@ -291,6 +293,7 @@ export default function ActivityDetailScreen() {
 
           {/* Detailed History link */}
           <Pressable
+            ref={detailedHistoryRef}
             onPress={() =>
               router.push({
                 pathname: '/activity/history',

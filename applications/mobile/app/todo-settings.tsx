@@ -49,6 +49,7 @@ export default function TodoSettingsScreen() {
   const [allActivities, setAllActivities] = useState<Activity[]>([]);
   const [clearOnNewDay, setClearOnNewDay] = useState(true);
   const [userConfig, setUserConfig] = useState<UserConfig | null>(null);
+  const daySelectorRef = useOnboardingTarget('day-selector');
   const scheduleAddRef = useOnboardingTarget('schedule-add-btn');
   const clearToggleRef = useOnboardingTarget('clear-toggle');
 
@@ -222,7 +223,7 @@ export default function TodoSettingsScreen() {
   return (
     <ThemedView className="flex-1 px-4 pt-4">
       {/* Day pills */}
-      <View className="mb-4 flex-row justify-between">
+      <View ref={daySelectorRef} className="mb-4 flex-row justify-between">
         {DAY_LABELS.map((label, i) => (
           <Pressable
             key={label}
@@ -271,12 +272,15 @@ export default function TodoSettingsScreen() {
               className="mb-6 items-center rounded-[14px] border border-dashed border-black/20 bg-black/5 py-3 dark:border-white/20 dark:bg-white/10"
             >
               <ThemedText className="text-[14px] font-semibold text-indigo-600 dark:text-indigo-400">
-                + Add Habit
+                + Add
               </ThemedText>
             </Pressable>
 
             {/* Clear toggle */}
-            <View ref={clearToggleRef} className="rounded-[14px] border border-black/10 bg-white p-4 dark:border-white/10 dark:bg-neutral-900">
+            <View
+              ref={clearToggleRef}
+              className="rounded-[14px] border border-black/10 bg-white p-4 dark:border-white/10 dark:bg-neutral-900"
+            >
               <View className="flex-row items-center justify-between">
                 <ThemedText className="text-[15px] font-medium text-neutral-900 dark:text-white">
                   Clear todo on new day

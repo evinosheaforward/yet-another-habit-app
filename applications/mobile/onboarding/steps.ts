@@ -35,6 +35,7 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
     title: 'Activities Tab',
     description: 'This is where you manage your habits and tasks.',
     position: 'above',
+    interactive: true,
   },
   {
     id: 'habits-create',
@@ -47,29 +48,6 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
     position: 'below',
     interactive: true,
   },
-  {
-    id: 'habits-stacking',
-    section: 'habits',
-    sectionTitle: 'Creating Habits',
-    screen: '/(tabs)/activities',
-    targetKey: 'stacking-info',
-    title: 'Habit Stacking',
-    description: 'You can stack habits \u2014 when you complete one, it reminds you to do the next.',
-    position: 'below',
-  },
-
-  // Section: history
-  {
-    id: 'history-intro',
-    section: 'history',
-    sectionTitle: 'Tracking Progress',
-    screen: '/(tabs)/activities',
-    targetKey: 'history-btn',
-    title: 'Activity History',
-    description: 'Tap any activity to see your history as a calendar or chart.',
-    position: 'below',
-  },
-
   // Section: todo
   {
     id: 'todo-tab',
@@ -81,6 +59,7 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
     description:
       'Your todo list integrates habits and tasks. Complete items here to track progress.',
     position: 'above',
+    interactive: true,
   },
   {
     id: 'todo-add',
@@ -114,6 +93,18 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
     position: 'below',
   },
 
+  {
+    id: 'todo-schedule-tasks',
+    section: 'todo',
+    sectionTitle: 'Todo List',
+    screen: '/(tabs)/todo',
+    targetKey: 'schedule-btn',
+    title: 'Scheduled Tasks',
+    description:
+      "You can also add tasks to your weekly schedule. They'll only show up the next time that day of the week comes around.",
+    position: 'below',
+  },
+
   // Section: schedule
   {
     id: 'schedule-btn',
@@ -125,6 +116,17 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
     description: 'Set up a weekly schedule so habits auto-populate your todo list each day.',
     position: 'below',
     interactive: true,
+  },
+  {
+    id: 'schedule-day-info',
+    section: 'schedule',
+    sectionTitle: 'Todo Schedule',
+    screen: '/todo-settings',
+    targetKey: 'day-selector',
+    title: 'Day-Specific Schedule',
+    description:
+      'Each day has its own list. Habits and tasks you add here only appear on your todo for that specific day of the week.',
+    position: 'below',
   },
   {
     id: 'schedule-add',
@@ -158,6 +160,31 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
     title: 'Achievements',
     description: 'Earn achievements by completing habits and todos. Check your progress here!',
     position: 'above',
+    interactive: true,
+  },
+
+  {
+    id: 'achievements-intro',
+    section: 'achievements',
+    sectionTitle: 'Achievements',
+    screen: '/(tabs)/achievements',
+    targetKey: 'achievements-header',
+    title: 'Your Rewards',
+    description:
+      'Create achievements to set goals and rewards for yourself. Track progress on individual habits, time periods, or todo completions.',
+    position: 'below',
+  },
+  {
+    id: 'achievements-create',
+    section: 'achievements',
+    sectionTitle: 'Achievements',
+    screen: '/(tabs)/achievements',
+    targetKey: 'create-achievement-btn',
+    title: 'Create an Achievement',
+    description:
+      'Tap here to create your first achievement. Pick a type (Habit, Period, or Todo), set a goal count, and optionally add a reward for yourself!',
+    position: 'below',
+    interactive: true,
   },
 
   // Contextual hook steps (not in linear flow)
@@ -172,5 +199,17 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
       'Archived items live here. Their history is preserved until you permanently delete them.',
     position: 'above',
     hookTrigger: 'first-archive',
+  },
+  {
+    id: 'history-detail',
+    section: 'history',
+    sectionTitle: 'Tracking Progress',
+    screen: '/activity/[id]',
+    targetKey: 'detailed-history-btn',
+    title: 'Detailed History',
+    description:
+      "View a full calendar or chart of your progress. Tap here to explore your activity's history!",
+    position: 'below',
+    hookTrigger: 'first-habit-created',
   },
 ];
