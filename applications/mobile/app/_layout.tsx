@@ -4,7 +4,8 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import 'react-native-reanimated';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { View } from 'react-native';
 import { useColorScheme as useNativeWindColorScheme } from 'nativewind';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
@@ -37,7 +38,8 @@ function AppContent() {
   return <OnboardingProvider>{content}</OnboardingProvider>;
 }
 
-export default function RootLayout() {
+function RootLayoutInner() {
+  const insets = useSafeAreaInsets();
   const colorScheme = useColorScheme();
   const { setColorScheme } = useNativeWindColorScheme();
 
@@ -47,18 +49,24 @@ export default function RootLayout() {
   }, [colorScheme, setColorScheme]);
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-        <SafeAreaProvider>
-          <IntegrityGate>
-            <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
-              <AppContent />
-            </SafeAreaView>
-          </IntegrityGate>
-        </SafeAreaProvider>
+    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+      <IntegrityGate>
+        <View style={{ flex: 1, paddingTop: insets.top, paddingBottom: insets.bottom }}>
+          <AppContent />
+        </View>
+      </IntegrityGate>
 
-        <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
-      </ThemeProvider>
+      <StatusBar style={colorScheme === 'dark' ? 'light' : 'dark'} />
+    </ThemeProvider>
+  );
+}
+
+export default function RootLayout() {
+  return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
+        <RootLayoutInner />
+      </SafeAreaProvider>
     </GestureHandlerRootView>
   );
 }

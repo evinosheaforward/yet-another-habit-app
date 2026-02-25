@@ -2,6 +2,7 @@ import type { Activity, ActivityCalendar, ActivityHistoryEntry, ActivityPeriod }
 import { db } from "./knex.js";
 import { getUserConfig } from "./userConfigsModel.js";
 import { removeDayConfigsByActivityId, removeDayConfigsByUserId } from "./todoDayConfigsModel.js";
+import { removeDateConfigsByActivityId, removeDateConfigsByUserId } from "./todoDateConfigsModel.js";
 import { randomUUID } from "crypto";
 
 /**
@@ -338,10 +339,11 @@ export async function updateActivityForUser(
     await db("activities").where({ id: activityId, user_id: userId }).update(patch);
   }
 
-  // When archiving, remove any todo items and day configs referencing this activity
+  // When archiving, remove any todo items and schedule configs referencing this activity
   if (updates.archived === true) {
     await db("todo_items").where({ activity_id: activityId }).del();
     await removeDayConfigsByActivityId(activityId);
+    await removeDateConfigsByActivityId(activityId);
   }
 
   // When unarchiving a task, reset its history so it comes back incomplete
@@ -434,9 +436,10 @@ export async function deleteActivityForUser(
 
   if (!activity) return false;
 
-  // Delete todo items and day configs referencing this activity
+  // Delete todo items and schedule configs referencing this activity
   await db("todo_items").where({ activity_id: activityId }).del();
   await removeDayConfigsByActivityId(activityId);
+  await removeDateConfigsByActivityId(activityId);
 
   // Orphan achievements that referenced this activity
   await db("achievements").where({ activity_id: activityId }).update({ activity_id: null });
@@ -463,6 +466,7 @@ export async function deleteAllDataForUser(userId: string): Promise<void> {
 
   await db("todo_items").where({ user_id: userId }).del();
   await removeDayConfigsByUserId(userId);
+  await removeDateConfigsByUserId(userId);
   await db("achievements").where({ user_id: userId }).del();
 
   if (activityIds.length > 0) {

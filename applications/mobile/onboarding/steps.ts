@@ -149,6 +149,17 @@ export const ONBOARDING_STEPS: OnboardingStep[] = [
       'Toggle this to control whether your todo list resets each day or keeps leftovers.',
     position: 'above',
   },
+  {
+    id: 'schedule-calendar',
+    section: 'schedule',
+    sectionTitle: 'Todo Schedule',
+    screen: '/todo-settings',
+    targetKey: 'calendar-tab',
+    title: 'Calendar Scheduling',
+    description:
+      'Switch to the Calendar tab to schedule items for specific dates instead of recurring weekly.',
+    position: 'below',
+  },
 
   // Section: achievements
   {
