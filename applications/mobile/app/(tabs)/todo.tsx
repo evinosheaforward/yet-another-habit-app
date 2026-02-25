@@ -30,6 +30,8 @@ import { ThemedView } from '@/components/themed-view';
 import { useCelebration } from '@/hooks/use-celebration';
 
 import { Activity, ActivityPeriod, CompletedAchievement, TodoItem } from '@yet-another-habit-app/shared-types';
+import { useOnboardingTarget } from '@/onboarding/useOnboardingTarget';
+import { useOnboarding } from '@/onboarding/OnboardingProvider';
 
 function capitalize(s: string) {
   return s.charAt(0).toUpperCase() + s.slice(1);
@@ -49,8 +51,12 @@ const PERIOD_TEXT_COLORS: Record<string, string> = {
 
 export default function TodoScreen() {
   const router = useRouter();
+  const { advanceStep } = useOnboarding();
   const { current: celebrationAchievement, celebrate, dismiss: dismissCelebration } = useCelebration();
-   
+  const addBtnRef = useOnboardingTarget('todo-add-btn');
+  const scheduleBtnRef = useOnboardingTarget('schedule-btn');
+  const completeInfoRef = useOnboardingTarget('todo-complete-info');
+
   const listRef = useRef<any>(null);
   const [items, setItems] = useState<TodoItem[]>([]);
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -317,7 +323,11 @@ export default function TodoScreen() {
 
         <View className="flex-row items-center gap-2">
           <Pressable
-            onPress={() => router.push('/todo-settings')}
+            ref={scheduleBtnRef}
+            onPress={() => {
+              advanceStep();
+              router.push('/todo-settings');
+            }}
             accessibilityRole="button"
             className="rounded-full border border-black/10 bg-black/10 px-3 py-2 dark:border-white/10 dark:bg-white/10"
           >
@@ -326,6 +336,7 @@ export default function TodoScreen() {
             </ThemedText>
           </Pressable>
           <Pressable
+            ref={addBtnRef}
             onPress={openPicker}
             accessibilityRole="button"
             className="rounded-full border border-black/10 bg-black/10 px-3 py-2 dark:border-white/10 dark:bg-white/10"
@@ -335,6 +346,13 @@ export default function TodoScreen() {
             </ThemedText>
           </Pressable>
         </View>
+      </View>
+
+      {/* Onboarding anchor for completion info */}
+      <View ref={completeInfoRef} className="mt-1">
+        <ThemedText className="text-[12px] opacity-50 text-neutral-500 dark:text-neutral-400">
+          Complete items to track progress
+        </ThemedText>
       </View>
 
       {fetchError ? (

@@ -22,6 +22,7 @@ import { ThemedView } from '@/components/themed-view';
 
 import type { Activity, TodoDayConfig, UserConfig } from '@yet-another-habit-app/shared-types';
 import { ActivityPeriod } from '@yet-another-habit-app/shared-types';
+import { useOnboardingTarget } from '@/onboarding/useOnboardingTarget';
 
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
@@ -48,6 +49,8 @@ export default function TodoSettingsScreen() {
   const [allActivities, setAllActivities] = useState<Activity[]>([]);
   const [clearOnNewDay, setClearOnNewDay] = useState(true);
   const [userConfig, setUserConfig] = useState<UserConfig | null>(null);
+  const scheduleAddRef = useOnboardingTarget('schedule-add-btn');
+  const clearToggleRef = useOnboardingTarget('clear-toggle');
 
   const loadConfigs = useCallback(async (day: number) => {
     try {
@@ -263,6 +266,7 @@ export default function TodoSettingsScreen() {
           <View className="mt-4">
             {/* Add Habit button */}
             <Pressable
+              ref={scheduleAddRef}
               onPress={openPicker}
               className="mb-6 items-center rounded-[14px] border border-dashed border-black/20 bg-black/5 py-3 dark:border-white/20 dark:bg-white/10"
             >
@@ -272,7 +276,7 @@ export default function TodoSettingsScreen() {
             </Pressable>
 
             {/* Clear toggle */}
-            <View className="rounded-[14px] border border-black/10 bg-white p-4 dark:border-white/10 dark:bg-neutral-900">
+            <View ref={clearToggleRef} className="rounded-[14px] border border-black/10 bg-white p-4 dark:border-white/10 dark:bg-neutral-900">
               <View className="flex-row items-center justify-between">
                 <ThemedText className="text-[15px] font-medium text-neutral-900 dark:text-white">
                   Clear todo on new day

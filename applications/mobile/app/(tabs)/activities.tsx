@@ -26,6 +26,8 @@ import { ThemedView } from '@/components/themed-view';
 import { useCelebration } from '@/hooks/use-celebration';
 
 import { Activity, ActivityPeriod } from '@yet-another-habit-app/shared-types';
+import { useOnboardingTarget } from '@/onboarding/useOnboardingTarget';
+import { useOnboarding } from '@/onboarding/OnboardingProvider';
 
 function capitalize(s: string) {
   return s.charAt(0).toUpperCase() + s.slice(1);
@@ -37,6 +39,10 @@ export default function ActivitiesScreen() {
   const [period, setPeriod] = useState<ActivityPeriod>(ActivityPeriod.Daily);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [openId, setOpenId] = useState<string | null>(null);
+  const createBtnRef = useOnboardingTarget('create-activity-btn');
+  const stackingInfoRef = useOnboardingTarget('stacking-info');
+  const historyBtnRef = useOnboardingTarget('history-btn');
+  const { advanceStep } = useOnboarding();
 
   const [createOpen, setCreateOpen] = useState(false);
   const [newTitle, setNewTitle] = useState('');
@@ -257,7 +263,11 @@ export default function ActivitiesScreen() {
         </ThemedText>
 
         <Pressable
-          onPress={() => setCreateOpen(true)}
+          ref={createBtnRef}
+          onPress={() => {
+            setCreateOpen(true);
+            advanceStep();
+          }}
           accessibilityRole="button"
           className="rounded-full border border-black/10 bg-black/10 px-3 py-2 dark:border-white/10 dark:bg-white/10"
         >
@@ -267,8 +277,22 @@ export default function ActivitiesScreen() {
         </Pressable>
       </View>
 
+      {/* Onboarding anchors */}
+      <View className="mt-2 flex-row items-center justify-between">
+        <View ref={stackingInfoRef}>
+          <ThemedText className="text-[12px] opacity-50 text-neutral-500 dark:text-neutral-400">
+            Stack habits to build routines
+          </ThemedText>
+        </View>
+        <View ref={historyBtnRef}>
+          <ThemedText className="text-[12px] opacity-50 text-neutral-500 dark:text-neutral-400">
+            Tap an activity for history
+          </ThemedText>
+        </View>
+      </View>
+
       {/* Period pills */}
-      <View className="mt-4 flex-row gap-1 rounded-full border border-black/10 bg-black/5 p-1 dark:border-white/10 dark:bg-white/10">
+      <View className="mt-2 flex-row gap-1 rounded-full border border-black/10 bg-black/5 p-1 dark:border-white/10 dark:bg-white/10">
         {Object.values(ActivityPeriod).map((p) => {
           const active = p === period;
           return (

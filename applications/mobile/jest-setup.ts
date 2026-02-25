@@ -189,4 +189,23 @@ jest.mock('@expo/app-integrity', () => ({
   requestIntegrityCheckAsync: jest.fn(() => Promise.resolve()),
 }));
 
+// ---------------------------------------------------------------------------
+// Onboarding – mock provider and hook
+// ---------------------------------------------------------------------------
+jest.mock('@/onboarding/OnboardingProvider', () => ({
+  OnboardingProvider: ({ children }: { children: React.ReactNode }) => children,
+  useOnboarding: () => ({
+    registerTarget: jest.fn(),
+    unregisterTarget: jest.fn(),
+    advanceStep: jest.fn(),
+    skipSection: jest.fn(),
+    triggerHook: jest.fn(),
+    isOnboardingActive: false,
+  }),
+}));
+
+jest.mock('@/onboarding/useOnboardingTarget', () => ({
+  useOnboardingTarget: () => ({ current: null }),
+}));
+
 

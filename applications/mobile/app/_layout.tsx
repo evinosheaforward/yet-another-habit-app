@@ -9,12 +9,33 @@ import { useColorScheme as useNativeWindColorScheme } from 'nativewind';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { IntegrityGate } from '@/components/integrity-gate';
+import { OnboardingProvider } from '@/onboarding/OnboardingProvider';
+import { useAuthState } from '@/auth/useAuthState';
 // Importing firebaseClient eagerly ensures auth + emulator are initialized at module load
 import '@/auth/firebaseClient';
 
 export const unstable_settings = {
   anchor: '(tabs)',
 };
+
+function AppContent() {
+  const { user } = useAuthState();
+
+  const content = (
+    <Stack>
+      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack.Screen name="activity/[id]" options={{ title: 'Activity Details' }} />
+      <Stack.Screen name="achievement/[id]" options={{ title: 'Achievement' }} />
+      <Stack.Screen name="activity/history" options={{ title: 'Activity History' }} />
+      <Stack.Screen name="todo-settings" options={{ title: 'Todo Settings' }} />
+      <Stack.Screen name="privacy-policy" options={{ title: 'Privacy Policy' }} />
+    </Stack>
+  );
+
+  if (!user) return content;
+
+  return <OnboardingProvider>{content}</OnboardingProvider>;
+}
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
@@ -31,14 +52,7 @@ export default function RootLayout() {
         <SafeAreaProvider>
           <IntegrityGate>
             <SafeAreaView style={{ flex: 1 }} edges={['top', 'bottom']}>
-              <Stack>
-                <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-                <Stack.Screen name="activity/[id]" options={{ title: 'Activity Details' }} />
-                <Stack.Screen name="achievement/[id]" options={{ title: 'Achievement' }} />
-                <Stack.Screen name="activity/history" options={{ title: 'Activity History' }} />
-                <Stack.Screen name="todo-settings" options={{ title: 'Todo Settings' }} />
-                <Stack.Screen name="privacy-policy" options={{ title: 'Privacy Policy' }} />
-              </Stack>
+              <AppContent />
             </SafeAreaView>
           </IntegrityGate>
         </SafeAreaProvider>

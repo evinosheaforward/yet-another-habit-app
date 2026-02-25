@@ -31,6 +31,7 @@ import { CelebrationModal } from '@/components/celebration-modal';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 import { useCelebration } from '@/hooks/use-celebration';
+import { useOnboarding } from '@/onboarding/OnboardingProvider';
 
 export default function ActivityDetailScreen() {
   const router = useRouter();
@@ -49,6 +50,7 @@ export default function ActivityDetailScreen() {
   }>();
 
   const { current: celebrationAchievement, celebrate, dismiss: dismissCelebration } = useCelebration();
+  const { triggerHook } = useOnboarding();
   const activityId = params.id;
   const initialGoalCount = Number(params.goalCount) || 1;
 
@@ -467,6 +469,7 @@ export default function ActivityDetailScreen() {
                   await unarchiveActivity(activityId);
                 } else {
                   await archiveActivity(activityId);
+                  triggerHook('first-archive');
                 }
                 router.back();
               } catch (e: any) {
