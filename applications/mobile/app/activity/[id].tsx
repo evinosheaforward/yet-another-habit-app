@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -51,9 +51,44 @@ export default function ActivityDetailScreen() {
   }>();
 
   const { current: celebrationAchievement, celebrate, dismiss: dismissCelebration } = useCelebration();
-  const { triggerHook } = useOnboarding();
+  const { triggerHook, advanceStep, activeStepId, remeasure } = useOnboarding();
+  const activityDetailHeaderRef = useOnboardingTarget('activity-detail-header');
+  const activitySettingsRef = useOnboardingTarget('activity-settings-header');
+  const activityArchiveRef = useOnboardingTarget('activity-archive-btn');
   const detailedHistoryRef = useOnboardingTarget('detailed-history-btn');
+  const scrollViewRef = useRef<ScrollView>(null);
   const activityId = params.id;
+
+  // When the history-detail step completes (via "Next" button or direct tap),
+  // navigate to the history page.
+  const prevStepRef = useRef(activeStepId);
+  useEffect(() => {
+    if (prevStepRef.current === 'history-detail' && activeStepId !== 'history-detail') {
+      router.push({
+        pathname: '/activity/history',
+        params: {
+          activityId,
+          period: params.period ?? 'daily',
+          goalCount: params.goalCount ?? '1',
+          title: params.title ?? '',
+        },
+      });
+    }
+    prevStepRef.current = activeStepId;
+  }, [activeStepId, activityId, params.period, params.goalCount, params.title, router]);
+
+  // Auto-scroll so the onboarding target is visible, then re-measure after scroll completes
+  useEffect(() => {
+    if (activeStepId === 'activity-archive') {
+      scrollViewRef.current?.scrollToEnd({ animated: true });
+      const timer = setTimeout(() => remeasure(), 500);
+      return () => clearTimeout(timer);
+    } else if (activeStepId === 'history-detail') {
+      scrollViewRef.current?.scrollTo({ y: 0, animated: true });
+      const timer = setTimeout(() => remeasure(), 500);
+      return () => clearTimeout(timer);
+    }
+  }, [activeStepId, remeasure]);
   const initialGoalCount = Number(params.goalCount) || 1;
 
   const [title, setTitle] = useState(params.title ?? '');
@@ -240,7 +275,7 @@ export default function ActivityDetailScreen() {
         className="flex-1"
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        <ScrollView contentContainerClassName="p-4 pb-10" keyboardShouldPersistTaps="handled">
+        <ScrollView ref={scrollViewRef} contentContainerClassName="p-4 pb-10" keyboardShouldPersistTaps="handled">
           {/* Stack prompt banner */}
           {params.showStackPrompt === '1' && !promptDismissed ? (
             <View className="mb-4 rounded-[12px] border border-emerald-500/30 bg-emerald-500/10 p-3">
@@ -269,6 +304,13 @@ export default function ActivityDetailScreen() {
             </View>
           ) : null}
 
+          {/* Title */}
+          <View ref={activityDetailHeaderRef} collapsable={false}>
+            <ThemedText type="title" className="mb-2 text-neutral-900 dark:text-white">
+              {title || params.title}
+            </ThemedText>
+          </View>
+
           {/* Period badge */}
           <View className="mb-4 flex-row">
             <View className="rounded-full bg-black/10 px-3 py-1 dark:bg-white/10">
@@ -294,7 +336,12 @@ export default function ActivityDetailScreen() {
           {/* Detailed History link */}
           <Pressable
             ref={detailedHistoryRef}
-            onPress={() =>
+            onPress={() => {
+              if (activeStepId === 'history-detail') {
+                advanceStep();
+                // Effect handles navigation on next render
+                return;
+              }
               router.push({
                 pathname: '/activity/history',
                 params: {
@@ -303,8 +350,8 @@ export default function ActivityDetailScreen() {
                   goalCount: String(currentGoal),
                   title: title || params.title || '',
                 },
-              })
-            }
+              });
+            }}
             className="mt-4 items-center rounded-[12px] border border-black/10 bg-black/5 px-4 py-2.5 dark:border-white/10 dark:bg-white/10"
           >
             <ThemedText className="text-[14px] font-semibold text-neutral-900 dark:text-white">
@@ -327,9 +374,11 @@ export default function ActivityDetailScreen() {
           </View>
 
           {/* Settings section header */}
-          <ThemedText type="subtitle" className="mb-1 mt-8 text-neutral-900 dark:text-white">
-            Settings
-          </ThemedText>
+          <View ref={activitySettingsRef} collapsable={false}>
+            <ThemedText type="subtitle" className="mb-1 mt-8 text-neutral-900 dark:text-white">
+              Settings
+            </ThemedText>
+          </View>
 
           {/* Title */}
           <ThemedText className="mb-1 mt-4 text-[13px] font-semibold uppercase tracking-wide opacity-50 text-neutral-700 dark:text-neutral-300">
@@ -465,6 +514,7 @@ export default function ActivityDetailScreen() {
 
           {/* Archive / Unarchive button */}
           <Pressable
+            ref={activityArchiveRef}
             onPress={async () => {
               try {
                 setArchiving(true);

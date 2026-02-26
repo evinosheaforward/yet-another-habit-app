@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   FlatList,
   KeyboardAvoidingView,
@@ -46,7 +46,11 @@ export default function ActivitiesScreen() {
   const createBtnRef = useOnboardingTarget('create-activity-btn');
   const stackingInfoRef = useOnboardingTarget('stacking-info');
   const historyBtnRef = useOnboardingTarget('history-btn');
-  const { advanceStep, triggerHook } = useOnboarding();
+  const newHabitRef = useOnboardingTarget('new-habit-item');
+  const newHabitCompleteRef = useOnboardingTarget('new-habit-complete-btn');
+  const newHabitDetailsRef = useOnboardingTarget('new-habit-details-btn');
+  const { advanceStep, triggerHook, activeStepId } = useOnboarding();
+  const [newHabitId, setNewHabitId] = useState<string | null>(null);
 
   const [createOpen, setCreateOpen] = useState(false);
   const [newTitle, setNewTitle] = useState('');
@@ -117,22 +121,12 @@ export default function ActivitiesScreen() {
       setArchiveTask(false);
       await refresh();
 
-      const hookTriggered = triggerHook('first-habit-created');
-      if (hookTriggered) {
-        router.push({
-          pathname: '/activity/[id]',
-          params: {
-            id: created.id,
-            title: created.title,
-            description: created.description ?? '',
-            goalCount: String(created.goalCount),
-            count: String(created.count),
-            completionPercent: String(created.completionPercent),
-            period: created.period,
-            stackedActivityId: created.stackedActivityId ?? '',
-            stackedActivityTitle: created.stackedActivityTitle ?? '',
-          },
-        });
+      // Only trigger the onboarding hook for habits, not one-off tasks
+      if (!created.task) {
+        const hookTriggered = triggerHook('first-habit-created');
+        if (hookTriggered) {
+          setNewHabitId(created.id);
+        }
       }
     } catch (e: any) {
       setCreateError(e?.message ?? 'Failed to create activity.');
@@ -168,6 +162,38 @@ export default function ActivitiesScreen() {
       refresh();
     }, [refresh]),
   );
+
+  // Auto-expand the new habit's collapsible when steps inside it activate
+  useEffect(() => {
+    if ((activeStepId === 'habit-complete' || activeStepId === 'habit-details') && newHabitId) {
+      setOpenId(newHabitId);
+    }
+  }, [activeStepId, newHabitId]);
+
+  // Navigate to detail page when habit-details step completes (via "Next" button)
+  const prevStepRef = useRef(activeStepId);
+  useEffect(() => {
+    if (prevStepRef.current === 'habit-details' && activeStepId !== 'habit-details' && newHabitId) {
+      const item = activities.find((a) => a.id === newHabitId);
+      if (item) {
+        router.push({
+          pathname: '/activity/[id]',
+          params: {
+            id: item.id,
+            title: item.title,
+            description: item.description,
+            goalCount: String(item.goalCount),
+            count: String(item.count),
+            completionPercent: String(item.completionPercent),
+            period: item.period,
+            stackedActivityId: item.stackedActivityId ?? '',
+            stackedActivityTitle: item.stackedActivityTitle ?? '',
+          },
+        });
+      }
+    }
+    prevStepRef.current = activeStepId;
+  }, [activeStepId, newHabitId, activities, router]);
 
   function toggleActivity(id: string) {
     setOpenId((cur) => (cur === id ? null : id));
@@ -601,68 +627,96 @@ export default function ActivitiesScreen() {
             </Pressable>
           </View>
         }
-        renderItem={({ item }) => (
-          <Collapsible
-            title={item.title}
-            progressPct={item.completionPercent}
-            isOpen={openId === item.id}
-            onToggle={() => toggleActivity(item.id)}
-            badge={item.task ? 'Task' : 'Habit'}
-          >
-            {item.description ? (
-              <ThemedText className="opacity-75 leading-5 text-neutral-700 dark:text-neutral-300">
-                {item.description}
-              </ThemedText>
-            ) : null}
+        renderItem={({ item }) => {
+          const isNewHabit = item.id === newHabitId;
 
-            {item.stackedActivityTitle ? (
-              <ThemedText className="mt-1.5 text-[13px] font-semibold text-emerald-600 dark:text-emerald-400">
-                Followed by: {item.stackedActivityTitle}
-              </ThemedText>
-            ) : null}
-
-            <Pressable
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-                handleDelta(item.id, 1);
-              }}
-              accessibilityRole="button"
-              className="mt-2.5 flex-row items-center justify-center gap-2 rounded-[10px] bg-emerald-600 px-4 py-2.5 dark:bg-emerald-500"
-            >
-              <ThemedText className="text-[14px] font-semibold text-white">
-                {item.completionPercent >= 100 ? '\u2713' : `${item.count} / ${item.goalCount}`}
-              </ThemedText>
-              <ThemedText className="text-[14px] font-semibold text-white">Complete</ThemedText>
-            </Pressable>
-
-            {!item.task ? (
-              <Pressable
-                onPress={() =>
-                  router.push({
-                    pathname: '/activity/[id]',
-                    params: {
-                      id: item.id,
-                      title: item.title,
-                      description: item.description,
-                      goalCount: String(item.goalCount),
-                      count: String(item.count),
-                      completionPercent: String(item.completionPercent),
-                      period: item.period,
-                      stackedActivityId: item.stackedActivityId ?? '',
-                      stackedActivityTitle: item.stackedActivityTitle ?? '',
-                    },
-                  })
+          const collapsible = (
+            <Collapsible
+              title={item.title}
+              progressPct={item.completionPercent}
+              isOpen={openId === item.id}
+              onToggle={() => {
+                toggleActivity(item.id);
+                if (isNewHabit && activeStepId === 'habit-expand') {
+                  advanceStep();
                 }
+              }}
+              badge={item.task ? 'Task' : 'Habit'}
+            >
+              {item.description ? (
+                <ThemedText className="opacity-75 leading-5 text-neutral-700 dark:text-neutral-300">
+                  {item.description}
+                </ThemedText>
+              ) : null}
+
+              {item.stackedActivityTitle ? (
+                <ThemedText className="mt-1.5 text-[13px] font-semibold text-emerald-600 dark:text-emerald-400">
+                  Followed by: {item.stackedActivityTitle}
+                </ThemedText>
+              ) : null}
+
+              <Pressable
+                ref={isNewHabit ? newHabitCompleteRef : undefined}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                  handleDelta(item.id, 1);
+                }}
                 accessibilityRole="button"
-                className="mt-3 items-center rounded-[10px] border border-black/10 bg-black/5 px-3 py-2 dark:border-white/10 dark:bg-white/10"
+                className="mt-2.5 flex-row items-center justify-center gap-2 rounded-[10px] bg-emerald-600 px-4 py-2.5 dark:bg-emerald-500"
               >
-                <ThemedText className="text-[13px] font-semibold text-neutral-900 dark:text-white">
-                  Details
+                <ThemedText className="text-[14px] font-semibold text-white">
+                  {item.completionPercent >= 100
+                    ? '\u2713'
+                    : `${item.count} / ${item.goalCount}`}
+                </ThemedText>
+                <ThemedText className="text-[14px] font-semibold text-white">
+                  Complete
                 </ThemedText>
               </Pressable>
-            ) : null}
-          </Collapsible>
-        )}
+
+              {!item.task ? (
+                <Pressable
+                  ref={isNewHabit ? newHabitDetailsRef : undefined}
+                  onPress={() => {
+                    if (isNewHabit && activeStepId === 'habit-details') {
+                      advanceStep();
+                      return;
+                    }
+                    router.push({
+                      pathname: '/activity/[id]',
+                      params: {
+                        id: item.id,
+                        title: item.title,
+                        description: item.description,
+                        goalCount: String(item.goalCount),
+                        count: String(item.count),
+                        completionPercent: String(item.completionPercent),
+                        period: item.period,
+                        stackedActivityId: item.stackedActivityId ?? '',
+                        stackedActivityTitle: item.stackedActivityTitle ?? '',
+                      },
+                    });
+                  }}
+                  accessibilityRole="button"
+                  className="mt-3 items-center rounded-[10px] border border-black/10 bg-black/5 px-3 py-2 dark:border-white/10 dark:bg-white/10"
+                >
+                  <ThemedText className="text-[13px] font-semibold text-neutral-900 dark:text-white">
+                    Details
+                  </ThemedText>
+                </Pressable>
+              ) : null}
+            </Collapsible>
+          );
+
+          if (isNewHabit) {
+            return (
+              <View ref={newHabitRef} collapsable={false}>
+                {collapsible}
+              </View>
+            );
+          }
+          return collapsible;
+        }}
       />
 
       <CelebrationModal achievement={celebrationAchievement} onDismiss={dismissCelebration} />

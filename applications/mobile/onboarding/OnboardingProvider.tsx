@@ -20,7 +20,9 @@ type OnboardingContextValue = {
   advanceStep: () => void;
   skipSection: () => void;
   triggerHook: (hookId: string) => boolean;
+  remeasure: () => void;
   isOnboardingActive: boolean;
+  activeStepId: string | null;
 };
 
 const OnboardingContext = createContext<OnboardingContextValue>({
@@ -29,7 +31,9 @@ const OnboardingContext = createContext<OnboardingContextValue>({
   advanceStep: () => {},
   skipSection: () => {},
   triggerHook: () => false,
+  remeasure: () => {},
   isOnboardingActive: false,
+  activeStepId: null,
 });
 
 export function useOnboarding() {
@@ -79,6 +83,11 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
 
   const targets = useRef<Map<string, RefObject<View | null>>>(new Map());
   const anchorRef = useRef<View>(null);
+  // After completing a hook step, suppress auto-navigation persistently until
+  // the user naturally arrives at the next step's screen. This prevents the
+  // provider from calling router.dismiss() while the user is still navigating
+  // within the hook flow (e.g. /activity/[id] → /activity/history → back).
+  const suppressAutoNavRef = useRef(false);
 
   // Fetch initial progress
   useEffect(() => {
@@ -127,6 +136,17 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
       return;
     }
     if (hookStep && completedSteps.has(hookStep.id)) {
+      // Chain: check for another uncompleted step with the same hookTrigger
+      const nextHook = ONBOARDING_STEPS.find(
+        (s) => s.hookTrigger === hookStep.hookTrigger && !completedSteps.has(s.id),
+      );
+      if (nextHook) {
+        setHookStep(nextHook);
+        return;
+      }
+      // Hook chain fully complete — suppress auto-navigation so we don't
+      // conflict with user navigation (e.g. browsing /activity/history).
+      suppressAutoNavRef.current = true;
       setHookStep(null);
     }
 
@@ -143,6 +163,13 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
 
     if (!screensMatch(pathname, activeStep.screen)) {
       setTargetLayout(null);
+
+      // After completing a hook step, suppress auto-navigation until the user
+      // naturally arrives at the next step's screen. This stays active across
+      // multiple pathname changes (e.g. /activity/[id] → /activity/history → back).
+      if (suppressAutoNavRef.current) {
+        return;
+      }
 
       // If the step uses a dynamic route (e.g. /activity/[id]), the external caller
       // is responsible for navigating — we can't construct the URL ourselves.
@@ -164,6 +191,9 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
       router.push(activeStep.screen as any);
       return;
     }
+
+    // User arrived at the correct screen — clear suppression
+    suppressAutoNavRef.current = false;
 
     // On the correct screen — try to measure the target
     const ref = targets.current.get(activeStep.targetKey);
@@ -205,12 +235,8 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
   const advanceStep = useCallback(() => {
     if (!activeStep) return;
     markComplete([activeStep.id]);
-
-    // If this was a hook step, clear it
-    if (hookStep?.id === activeStep.id) {
-      setHookStep(null);
-    }
-  }, [activeStep, hookStep, markComplete]);
+    // Hook step transitions (chaining + suppression) handled by the compute-active-step effect.
+  }, [activeStep, markComplete]);
 
   const skipSection = useCallback(() => {
     if (!activeStep) return;
@@ -235,6 +261,10 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
     [completedSteps],
   );
 
+  const remeasure = useCallback(() => {
+    setTargetVersion((v) => v + 1);
+  }, []);
+
   const isOnboardingActive = activeStep !== null && targetLayout !== null;
 
   // Check if there are more steps in the current section after the active step
@@ -254,7 +284,9 @@ export function OnboardingProvider({ children }: { children: React.ReactNode }) 
     advanceStep,
     skipSection,
     triggerHook,
+    remeasure,
     isOnboardingActive,
+    activeStepId: activeStep?.id ?? null,
   };
 
   return (

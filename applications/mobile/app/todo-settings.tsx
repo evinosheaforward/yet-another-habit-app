@@ -1,12 +1,13 @@
-import { useCallback, useState } from 'react';
-import { FlatList, Modal, Pressable, ScrollView, Switch, View } from 'react-native';
+import React, { useCallback, useEffect, useState } from 'react';
+import { Pressable, ScrollView, Switch, View } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
+import * as Haptics from 'expo-haptics';
 import DraggableFlatList, {
   ScaleDecorator,
   RenderItemParams,
 } from 'react-native-draggable-flatlist';
 
-import { getActivities, getUserConfig, updateUserConfig } from '@/api/activities';
+import { createActivity, getActivities, getUserConfig, updateUserConfig } from '@/api/activities';
 import { addTodoItem } from '@/api/todoItems';
 import {
   getDayConfigs,
@@ -22,6 +23,7 @@ import {
   getScheduledDates,
 } from '@/api/todoDateConfigs';
 
+import { ActivityPickerModal } from '@/components/activity-picker-modal';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 
@@ -33,6 +35,7 @@ import type {
 } from '@yet-another-habit-app/shared-types';
 import { ActivityPeriod } from '@yet-another-habit-app/shared-types';
 import { useOnboardingTarget } from '@/onboarding/useOnboardingTarget';
+import { useOnboarding } from '@/onboarding/OnboardingProvider';
 
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTH_NAMES = [
@@ -49,7 +52,7 @@ const MONTH_NAMES = [
   'November',
   'December',
 ];
-const CAL_DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+const CAL_DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 function capitalize(s: string) {
   return s.charAt(0).toUpperCase() + s.slice(1);
@@ -82,6 +85,48 @@ const PERIOD_TEXT_COLORS: Record<string, string> = {
 
 type Tab = 'weekly' | 'calendar';
 
+/**
+ * Separate component so useOnboardingTarget registers/unregisters when the
+ * calendar tab mounts/unmounts, triggering targetVersion to bump and the
+ * measurement effect to re-run.
+ */
+function CalendarAddButton({ onPress, disabled }: { onPress?: () => void; disabled: boolean }) {
+  const ref = useOnboardingTarget('calendar-add-btn');
+  return (
+    <Pressable
+      ref={ref}
+      onPress={onPress}
+      disabled={disabled}
+      className={[
+        'mt-4 mb-6 items-center rounded-[14px] border border-dashed py-3',
+        disabled
+          ? 'border-black/10 bg-black/5 opacity-50 dark:border-white/10 dark:bg-white/5'
+          : 'border-black/20 bg-black/5 dark:border-white/20 dark:bg-white/10',
+      ].join(' ')}
+    >
+      <ThemedText
+        className={[
+          'text-[14px] font-semibold',
+          disabled
+            ? 'text-neutral-400 dark:text-neutral-500'
+            : 'text-indigo-600 dark:text-indigo-400',
+        ].join(' ')}
+      >
+        + Add
+      </ThemedText>
+    </Pressable>
+  );
+}
+
+function CalendarGridWrapper({ children }: { children: React.ReactNode }) {
+  const ref = useOnboardingTarget('calendar-grid');
+  return (
+    <View ref={ref} collapsable={false}>
+      {children}
+    </View>
+  );
+}
+
 export default function TodoSettingsScreen() {
   const [activeTab, setActiveTab] = useState<Tab>('weekly');
 
@@ -94,6 +139,14 @@ export default function TodoSettingsScreen() {
   const scheduleAddRef = useOnboardingTarget('schedule-add-btn');
   const clearToggleRef = useOnboardingTarget('clear-toggle');
   const calendarTabRef = useOnboardingTarget('calendar-tab');
+  const { advanceStep, activeStepId } = useOnboarding();
+
+  // When onboarding advances to a step that needs the calendar tab, switch to it
+  useEffect(() => {
+    if (activeStepId === 'schedule-calendar-grid' || activeStepId === 'schedule-calendar-add') {
+      setActiveTab('calendar');
+    }
+  }, [activeStepId]);
 
   // --- Weekly tab state ---
   const [selectedDay, setSelectedDay] = useState(() => new Date().getDay());
@@ -287,6 +340,34 @@ export default function TodoSettingsScreen() {
     }
   }
 
+  async function handleCreateTask(title: string) {
+    const activity = await createActivity({
+      title,
+      period: ActivityPeriod.Daily,
+      goalCount: 1,
+      task: true,
+      archiveTask: false,
+    });
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+    if (activeTab === 'weekly') {
+      const config = await addDayConfig(selectedDay, activity.id);
+      setDayConfigs((prev) => [...prev, config]);
+
+      if (selectedDay === new Date().getDay()) {
+        try {
+          await addTodoItem(activity.id);
+        } catch {
+          // best effort
+        }
+      }
+    } else if (selectedDate) {
+      const config = await addDateConfig(selectedDate, activity.id);
+      setDateConfigs((prev) => [...prev, config]);
+      setScheduledDates((prev) => new Set([...prev, selectedDate]));
+    }
+  }
+
   async function handleToggleClear(value: boolean) {
     if (!userConfig) return;
     setClearOnNewDay(value);
@@ -303,7 +384,7 @@ export default function TodoSettingsScreen() {
     const monthIndex = calMonth - 1;
     const daysInMonth = new Date(Date.UTC(calYear, monthIndex + 1, 0)).getUTCDate();
     const firstDow = new Date(Date.UTC(calYear, monthIndex, 1)).getUTCDay(); // 0=Sun
-    const startOffset = firstDow === 0 ? 6 : firstDow - 1; // Mon=0
+    const startOffset = firstDow; // Sun=0
     const totalCells = startOffset + daysInMonth;
     const rows = Math.ceil(totalCells / 7);
     const todayStr = getTodayStr();
@@ -589,7 +670,10 @@ export default function TodoSettingsScreen() {
         </Pressable>
         <Pressable
           ref={calendarTabRef}
-          onPress={() => setActiveTab('calendar')}
+          onPress={() => {
+            setActiveTab('calendar');
+            advanceStep();
+          }}
           className={[
             'flex-1 items-center rounded-full py-2',
             activeTab === 'calendar' ? 'bg-indigo-600 dark:bg-indigo-500' : '',
@@ -668,7 +752,7 @@ export default function TodoSettingsScreen() {
       ) : (
         <ScrollView contentContainerStyle={{ paddingBottom: 16 }} style={{ flex: 1 }}>
           {/* Calendar grid */}
-          {renderCalendarGrid()}
+          <CalendarGridWrapper>{renderCalendarGrid()}</CalendarGridWrapper>
 
           {/* Date configs list */}
           {selectedDate ? (
@@ -691,14 +775,6 @@ export default function TodoSettingsScreen() {
                   </View>
                 }
               />
-              <Pressable
-                onPress={openPicker}
-                className="mt-4 mb-6 items-center rounded-[14px] border border-dashed border-black/20 bg-black/5 py-3 dark:border-white/20 dark:bg-white/10"
-              >
-                <ThemedText className="text-[14px] font-semibold text-indigo-600 dark:text-indigo-400">
-                  + Add
-                </ThemedText>
-              </Pressable>
             </>
           ) : (
             <View className="items-center py-8">
@@ -708,92 +784,20 @@ export default function TodoSettingsScreen() {
             </View>
           )}
 
+          <CalendarAddButton onPress={selectedDate ? openPicker : undefined} disabled={!selectedDate} />
+
           {renderClearToggle()}
         </ScrollView>
       )}
 
-      {/* Activity picker modal */}
-      <Modal
+      <ActivityPickerModal
         visible={pickerOpen}
-        animationType="fade"
-        transparent
-        onRequestClose={() => setPickerOpen(false)}
-      >
-        <View className="flex-1 justify-end bg-black/50">
-          <ThemedView className="rounded-t-[20px] border-t border-black/10 bg-white p-4 dark:border-white/10 dark:bg-neutral-950">
-            <View className="flex-row items-center justify-between mb-3">
-              <ThemedText type="subtitle" className="text-neutral-900 dark:text-white">
-                {pickerTitle}
-              </ThemedText>
-              <Pressable
-                onPress={() => setPickerOpen(false)}
-                className="rounded-full bg-black/10 px-3 py-1.5 dark:bg-white/10"
-              >
-                <ThemedText className="text-[13px] font-semibold text-neutral-900 dark:text-white">
-                  Close
-                </ThemedText>
-              </Pressable>
-            </View>
-
-            <FlatList
-              data={allActivities}
-              keyExtractor={(a) => a.id}
-              style={{ maxHeight: 400 }}
-              ItemSeparatorComponent={() => <View style={{ height: 6 }} />}
-              ListEmptyComponent={
-                <View className="items-center py-8">
-                  <ThemedText className="text-[14px] opacity-50 text-neutral-700 dark:text-neutral-300">
-                    No activities found
-                  </ThemedText>
-                </View>
-              }
-              renderItem={({ item: activity }) => (
-                <Pressable
-                  onPress={() => handlePickerAdd(activity.id)}
-                  className="flex-row items-center rounded-[12px] border border-black/10 bg-black/5 px-3 py-2.5 dark:border-white/10 dark:bg-white/10"
-                >
-                  <View className="flex-1 flex-row flex-wrap items-center gap-1.5">
-                    <ThemedText className="text-[14px] font-medium text-neutral-900 dark:text-white">
-                      {activity.title}
-                    </ThemedText>
-                    <View
-                      className={[
-                        'rounded-full px-2 py-0.5',
-                        PERIOD_COLORS[activity.period] ?? 'bg-black/10',
-                      ].join(' ')}
-                    >
-                      <ThemedText
-                        className={[
-                          'text-[11px] font-semibold',
-                          PERIOD_TEXT_COLORS[activity.period] ?? 'text-neutral-600',
-                        ].join(' ')}
-                      >
-                        {capitalize(activity.period)}
-                      </ThemedText>
-                    </View>
-                    {activity.task ? (
-                      <View className="rounded-full bg-orange-500/20 px-2 py-0.5">
-                        <ThemedText className="text-[11px] font-semibold text-orange-600 dark:text-orange-400">
-                          Task
-                        </ThemedText>
-                      </View>
-                    ) : (
-                      <View className="rounded-full bg-emerald-500/15 px-2 py-0.5">
-                        <ThemedText className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">
-                          Habit
-                        </ThemedText>
-                      </View>
-                    )}
-                  </View>
-                  <ThemedText className="text-[18px] text-indigo-500 dark:text-indigo-400">
-                    +
-                  </ThemedText>
-                </Pressable>
-              )}
-            />
-          </ThemedView>
-        </View>
-      </Modal>
+        onClose={() => setPickerOpen(false)}
+        title={pickerTitle}
+        activities={allActivities}
+        onAdd={handlePickerAdd}
+        onCreateTask={handleCreateTask}
+      />
     </ThemedView>
   );
 }
