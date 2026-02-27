@@ -2,7 +2,7 @@ export const env = {
   port: Number(process.env.PORT ?? "3001"),
 
   db: {
-    client: process.env.DB_CLIENT ?? "sqlite3",
+    client: process.env.DB_CLIENT === "mysql2" ? "mysql2" : "better-sqlite3",
     sqliteFilename: process.env.DB_SQLITE_FILENAME ?? "./data/dev.sqlite3",
 
     host: process.env.DB_HOST ?? "127.0.0.1",

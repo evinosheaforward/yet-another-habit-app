@@ -6,10 +6,10 @@ export function makeConfig(): Knex.Config {
     pool: { min: 0, max: 10 },
   };
 
-  if (env.db.client === "sqlite3") {
+  if (env.db.client === "better-sqlite3") {
     return {
       ...common,
-      client: "sqlite3",
+      client: "better-sqlite3",
       connection: {
         filename: env.db.sqliteFilename,
       },

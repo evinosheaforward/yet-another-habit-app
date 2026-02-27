@@ -47,7 +47,8 @@
       "WebFetch(domain:www.npmjs.com)",
       "Bash(npm view:*)",
       "Bash(findstr:*)",
-      "Bash(npm audit:*)"
+      "Bash(npm audit:*)",
+      "Bash(npm explain:*)"
     ]
   },
   "enableAllProjectMcpServers": true,

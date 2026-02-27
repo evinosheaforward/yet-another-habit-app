@@ -29,5 +29,10 @@
   "dependencies": {
     "react": "19.1.4",
     "react-dom": "19.1.4"
+  },
+  "overrides": {
+    "jest-environment-jsdom": {
+      "jsdom": "^25.0.0"
+    }
   }
 }

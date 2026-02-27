@@ -2,7 +2,8 @@ import "dotenv/config";
 import path from "path";
 import type { Knex } from "knex";
 
-const client = process.env.DB_CLIENT ?? "sqlite3";
+const rawClient = process.env.DB_CLIENT ?? "better-sqlite3";
+const useSqlite = rawClient === "better-sqlite3" || rawClient === "sqlite3";
 
 const migrations: Knex.MigratorConfig = {
   directory: path.resolve("./migrations"),
@@ -10,9 +11,9 @@ const migrations: Knex.MigratorConfig = {
 };
 
 const config: Knex.Config =
-  client === "sqlite3"
+  useSqlite
     ? {
-        client: "sqlite3",
+        client: "better-sqlite3",
         connection: { filename: process.env.DB_SQLITE_FILENAME ?? "./data/dev.sqlite3" },
         useNullAsDefault: true,
         migrations,

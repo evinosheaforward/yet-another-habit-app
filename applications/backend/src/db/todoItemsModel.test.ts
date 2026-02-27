@@ -5,7 +5,7 @@ import { __setTestDb } from "./knex.js";
 
 // Create an in-memory SQLite database for testing
 const testDb = knexLib({
-  client: "sqlite3",
+  client: "better-sqlite3",
   connection: { filename: ":memory:" },
   useNullAsDefault: true,
   migrations: {
