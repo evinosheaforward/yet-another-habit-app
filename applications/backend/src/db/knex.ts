@@ -13,7 +13,7 @@ export function makeConfig(): Knex.Config {
       connection: {
         filename: env.db.sqliteFilename,
       },
-      useNullAsDefault: true, 
+      useNullAsDefault: true,
     } satisfies Knex.Config;
   }
 

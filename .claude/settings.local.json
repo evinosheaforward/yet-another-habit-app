@@ -43,7 +43,11 @@
       "WebSearch",
       "WebFetch(domain:docs.expo.dev)",
       "WebFetch(domain:expo.dev)",
-      "Bash(npm cache clean:*)"
+      "Bash(npm cache clean:*)",
+      "WebFetch(domain:www.npmjs.com)",
+      "Bash(npm view:*)",
+      "Bash(findstr:*)",
+      "Bash(npm audit:*)"
     ]
   },
   "enableAllProjectMcpServers": true,
