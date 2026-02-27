@@ -8,6 +8,7 @@ import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
 
 import { Activity, ActivityPeriod } from '@yet-another-habit-app/shared-types';
+import { useOnboardingTarget } from '@/onboarding/useOnboardingTarget';
 
 function capitalize(s: string) {
   return s.charAt(0).toUpperCase() + s.slice(1);
@@ -20,6 +21,8 @@ export default function ArchiveScreen() {
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [unarchivingId, setUnarchivingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const unarchiveRef = useOnboardingTarget('archive-unarchive-btn');
+  const deleteRef = useOnboardingTarget('archive-delete-btn');
 
   const refresh = useCallback(async () => {
     try {
@@ -158,87 +161,92 @@ export default function ArchiveScreen() {
             </ThemedText>
           </View>
         }
-        renderItem={({ item }) => (
-          <View className="rounded-[14px] border border-black/10 bg-white p-4 dark:border-white/10 dark:bg-neutral-900">
-            <ThemedText className="text-[16px] font-semibold text-neutral-900 dark:text-white">
-              {item.title}
-            </ThemedText>
-            <View className="mt-1 flex-row gap-1.5">
-              <View className="rounded-full bg-black/10 px-2.5 py-0.5 dark:bg-white/10">
-                <ThemedText className="text-[12px] font-semibold capitalize text-neutral-900 dark:text-white">
-                  {item.period}
-                </ThemedText>
+        renderItem={({ item, index }) => {
+          const isFirst = index === 0;
+          return (
+            <View className="rounded-[14px] border border-black/10 bg-white p-4 dark:border-white/10 dark:bg-neutral-900">
+              <ThemedText className="text-[16px] font-semibold text-neutral-900 dark:text-white">
+                {item.title}
+              </ThemedText>
+              <View className="mt-1 flex-row gap-1.5">
+                <View className="rounded-full bg-black/10 px-2.5 py-0.5 dark:bg-white/10">
+                  <ThemedText className="text-[12px] font-semibold capitalize text-neutral-900 dark:text-white">
+                    {item.period}
+                  </ThemedText>
+                </View>
+                {item.task ? (
+                  <View className="rounded-full bg-orange-500/20 px-2.5 py-0.5">
+                    <ThemedText className="text-[11px] font-semibold text-orange-600 dark:text-orange-400">
+                      Task
+                    </ThemedText>
+                  </View>
+                ) : (
+                  <View className="rounded-full bg-emerald-500/15 px-2.5 py-0.5">
+                    <ThemedText className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">
+                      Habit
+                    </ThemedText>
+                  </View>
+                )}
               </View>
-              {item.task ? (
-                <View className="rounded-full bg-orange-500/20 px-2.5 py-0.5">
-                  <ThemedText className="text-[11px] font-semibold text-orange-600 dark:text-orange-400">
-                    Task
-                  </ThemedText>
-                </View>
-              ) : (
-                <View className="rounded-full bg-emerald-500/15 px-2.5 py-0.5">
-                  <ThemedText className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">
-                    Habit
-                  </ThemedText>
-                </View>
-              )}
-            </View>
 
-            <View className="mt-3 flex-row gap-2.5">
+              <View className="mt-3 flex-row gap-2.5">
+                <Pressable
+                  ref={isFirst ? unarchiveRef : undefined}
+                  onPress={() => handleUnarchive(item.id)}
+                  disabled={unarchivingId === item.id}
+                  className={[
+                    'flex-1 items-center rounded-[10px] border border-black/10 bg-black/5 px-3 py-2 dark:border-white/10 dark:bg-white/10',
+                    unarchivingId === item.id ? 'opacity-50' : 'opacity-100',
+                  ].join(' ')}
+                >
+                  <ThemedText className="text-[13px] font-semibold text-neutral-900 dark:text-white">
+                    {unarchivingId === item.id ? 'Unarchiving...' : 'Unarchive'}
+                  </ThemedText>
+                </Pressable>
+
+                <Pressable
+                  onPress={() =>
+                    router.push({
+                      pathname: '/activity/[id]',
+                      params: {
+                        id: item.id,
+                        title: item.title,
+                        description: item.description,
+                        goalCount: String(item.goalCount),
+                        count: String(item.count),
+                        completionPercent: String(item.completionPercent),
+                        period: item.period,
+                        stackedActivityId: item.stackedActivityId ?? '',
+                        stackedActivityTitle: item.stackedActivityTitle ?? '',
+                        archived: 'true',
+                      },
+                    })
+                  }
+                  accessibilityRole="button"
+                  className="flex-1 items-center rounded-[10px] border border-black/10 bg-black/5 px-3 py-2 dark:border-white/10 dark:bg-white/10"
+                >
+                  <ThemedText className="text-[13px] font-semibold text-neutral-900 dark:text-white">
+                    Details
+                  </ThemedText>
+                </Pressable>
+              </View>
+
               <Pressable
-                onPress={() => handleUnarchive(item.id)}
-                disabled={unarchivingId === item.id}
+                ref={isFirst ? deleteRef : undefined}
+                onPress={() => handleDelete(item.id)}
+                disabled={deletingId === item.id}
                 className={[
-                  'flex-1 items-center rounded-[10px] border border-black/10 bg-black/5 px-3 py-2 dark:border-white/10 dark:bg-white/10',
-                  unarchivingId === item.id ? 'opacity-50' : 'opacity-100',
+                  'mt-2 items-center rounded-[10px] border border-red-500/20 bg-red-500/10 px-3 py-2',
+                  deletingId === item.id ? 'opacity-50' : 'opacity-100',
                 ].join(' ')}
               >
-                <ThemedText className="text-[13px] font-semibold text-neutral-900 dark:text-white">
-                  {unarchivingId === item.id ? 'Unarchiving...' : 'Unarchive'}
-                </ThemedText>
-              </Pressable>
-
-              <Pressable
-                onPress={() =>
-                  router.push({
-                    pathname: '/activity/[id]',
-                    params: {
-                      id: item.id,
-                      title: item.title,
-                      description: item.description,
-                      goalCount: String(item.goalCount),
-                      count: String(item.count),
-                      completionPercent: String(item.completionPercent),
-                      period: item.period,
-                      stackedActivityId: item.stackedActivityId ?? '',
-                      stackedActivityTitle: item.stackedActivityTitle ?? '',
-                      archived: 'true',
-                    },
-                  })
-                }
-                accessibilityRole="button"
-                className="flex-1 items-center rounded-[10px] border border-black/10 bg-black/5 px-3 py-2 dark:border-white/10 dark:bg-white/10"
-              >
-                <ThemedText className="text-[13px] font-semibold text-neutral-900 dark:text-white">
-                  Details
+                <ThemedText className="text-[13px] font-semibold text-red-600 dark:text-red-400">
+                  {deletingId === item.id ? 'Deleting...' : 'Delete'}
                 </ThemedText>
               </Pressable>
             </View>
-
-            <Pressable
-              onPress={() => handleDelete(item.id)}
-              disabled={deletingId === item.id}
-              className={[
-                'mt-2 items-center rounded-[10px] border border-red-500/20 bg-red-500/10 px-3 py-2',
-                deletingId === item.id ? 'opacity-50' : 'opacity-100',
-              ].join(' ')}
-            >
-              <ThemedText className="text-[13px] font-semibold text-red-600 dark:text-red-400">
-                {deletingId === item.id ? 'Deleting...' : 'Delete'}
-              </ThemedText>
-            </Pressable>
-          </View>
-        )}
+          );
+        }}
       />
     </ThemedView>
   );

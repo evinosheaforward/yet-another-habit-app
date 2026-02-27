@@ -181,4 +181,31 @@ jest.mock('react-native-google-mobile-ads', () => ({
   TestIds: { BANNER: 'ca-app-pub-3940256099942544/6300978111' },
 }));
 
+// ---------------------------------------------------------------------------
+// @expo/app-integrity – mock for Play Integrity gate
+// ---------------------------------------------------------------------------
+jest.mock('@expo/app-integrity', () => ({
+  prepareIntegrityTokenProviderAsync: jest.fn(() => Promise.resolve()),
+  requestIntegrityCheckAsync: jest.fn(() => Promise.resolve()),
+}));
+
+// ---------------------------------------------------------------------------
+// Onboarding – mock provider and hook
+// ---------------------------------------------------------------------------
+jest.mock('@/onboarding/OnboardingProvider', () => ({
+  OnboardingProvider: ({ children }: { children: React.ReactNode }) => children,
+  useOnboarding: () => ({
+    registerTarget: jest.fn(),
+    unregisterTarget: jest.fn(),
+    advanceStep: jest.fn(),
+    skipSection: jest.fn(),
+    triggerHook: jest.fn(),
+    isOnboardingActive: false,
+  }),
+}));
+
+jest.mock('@/onboarding/useOnboardingTarget', () => ({
+  useOnboardingTarget: () => ({ current: null }),
+}));
+
 

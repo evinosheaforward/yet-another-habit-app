@@ -26,6 +26,8 @@ export interface TodoItem {
   activityPeriod: ActivityPeriod;
   activityTask: boolean;
   activityArchiveTask: boolean;
+  stackedActivityId: string | null;
+  stackedActivityTitle: string | null;
   sortOrder: number;
 }
 

@@ -1,4 +1,4 @@
-import { View } from 'react-native';
+import { Platform, View } from 'react-native';
 import type { ActivityCalendar } from '@yet-another-habit-app/shared-types';
 import { ActivityPeriod } from '@yet-another-habit-app/shared-types';
 import { ThemedText } from '@/components/themed-text';
@@ -9,7 +9,7 @@ type Props = {
   month: number; // 1-based
 };
 
-const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MONTH_NAMES = [
   'January',
   'February',
@@ -136,8 +136,7 @@ export function CalendarHeatmap({ data, year, month }: Props) {
   const monthIndex = month - 1;
   const daysInMonth = new Date(Date.UTC(year, monthIndex + 1, 0)).getUTCDate();
   const firstDow = new Date(Date.UTC(year, monthIndex, 1)).getUTCDay(); // 0=Sun
-  // Convert to Mon=0, Tue=1, ..., Sun=6
-  const startOffset = firstDow === 0 ? 6 : firstDow - 1;
+  const startOffset = firstDow;
 
   // Build grid cells: padding + real days
   const totalCells = startOffset + daysInMonth;
@@ -158,8 +157,10 @@ export function CalendarHeatmap({ data, year, month }: Props) {
     grid.push(row);
   }
 
+  const webStyle = Platform.OS === 'web' ? { maxWidth: '75%' as const, alignSelf: 'center' as const, width: '100%' as const } : undefined;
+
   return (
-    <View>
+    <View style={webStyle}>
       {/* Month title */}
       <ThemedText className="mb-3 text-center text-[16px] font-bold text-neutral-900 dark:text-white">
         {MONTH_NAMES[monthIndex]} {year}

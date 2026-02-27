@@ -6,6 +6,7 @@ import { requireAuth } from "./auth/requireAuth";
 import activitiesRoutes from "./routes/activities";
 import todoItemsRoutes from "./routes/todoItems";
 import achievementsRoutes from "./routes/achievements";
+import onboardingRoutes from "./routes/onboarding";
 
 initFirebaseAdmin();
 
@@ -30,6 +31,7 @@ app.use(requireAuth);
 app.use(activitiesRoutes);
 app.use(todoItemsRoutes);
 app.use(achievementsRoutes);
+app.use(onboardingRoutes);
 
 // Global error handler — catches unhandled errors in route handlers
 app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {

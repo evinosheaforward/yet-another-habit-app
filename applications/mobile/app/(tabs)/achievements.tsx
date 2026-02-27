@@ -22,6 +22,8 @@ import { getAchievements, createAchievement } from '@/api/achievements';
 import { getActivities } from '@/api/activities';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { useOnboardingTarget } from '@/onboarding/useOnboardingTarget';
+import { useOnboarding } from '@/onboarding/OnboardingProvider';
 
 function capitalize(s: string) {
   return s.charAt(0).toUpperCase() + s.slice(1);
@@ -47,6 +49,9 @@ const TYPE_BADGE: Record<AchievementType, { label: string; color: string; darkCo
 
 export default function AchievementsScreen() {
   const router = useRouter();
+  const headerRef = useOnboardingTarget('achievements-header');
+  const createBtnRef = useOnboardingTarget('create-achievement-btn');
+  const { advanceStep } = useOnboarding();
   const [achievements, setAchievements] = useState<Achievement[]>([]);
   const [fetchError, setFetchError] = useState<string | null>(null);
 
@@ -213,12 +218,18 @@ export default function AchievementsScreen() {
     <ThemedView className="flex-1 px-4 pt-6">
       {/* Header */}
       <View className="flex-row items-center justify-between border-b border-black/10 pb-2 dark:border-white/10">
-        <ThemedText type="title" className="mb-3 text-neutral-900 dark:text-white">
-          Rewards
-        </ThemedText>
+        <View ref={headerRef}>
+          <ThemedText type="title" className="mb-3 text-neutral-900 dark:text-white">
+            Rewards
+          </ThemedText>
+        </View>
 
         <Pressable
-          onPress={() => setCreateOpen(true)}
+          ref={createBtnRef}
+          onPress={() => {
+            setCreateOpen(true);
+            advanceStep();
+          }}
           accessibilityRole="button"
           className="rounded-full border border-black/10 bg-black/10 px-3 py-2 dark:border-white/10 dark:bg-white/10"
         >

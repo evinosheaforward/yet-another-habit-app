@@ -11,6 +11,8 @@ import { deleteUser, getAuth, signOut } from 'firebase/auth';
 import { app } from '@/auth/firebaseClient';
 import { deleteAccount, getUserConfig, updateUserConfig } from '@/api/activities';
 import { BannerAdView } from '@/components/banner-ad';
+import { useOnboardingTarget } from '@/onboarding/useOnboardingTarget';
+import { useOnboarding } from '@/onboarding/OnboardingProvider';
 
 export default function HomeScreen() {
   const auth = useMemo(() => getAuth(app), []);
@@ -18,6 +20,8 @@ export default function HomeScreen() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [dayEndOffsetMinutes, setDayEndOffsetMinutes] = useState<number | null>(null);
   const [showDayEndPicker, setShowDayEndPicker] = useState(false);
+  const dayEndRef = useOnboardingTarget('day-end-card');
+  const { advanceStep } = useOnboarding();
 
   useEffect(() => {
     getUserConfig()
@@ -47,11 +51,12 @@ export default function HomeScreen() {
       try {
         const config = await updateUserConfig({ dayEndOffsetMinutes: utcMinutes });
         setDayEndOffsetMinutes(config.dayEndOffsetMinutes);
+        advanceStep();
       } catch (e: any) {
         Alert.alert('Failed to update', e?.message ?? 'Unknown error');
       }
     },
-    [tzOffsetMinutes],
+    [tzOffsetMinutes, advanceStep],
   );
 
   const email = auth.currentUser?.email ?? '';
@@ -155,6 +160,7 @@ export default function HomeScreen() {
 
         {/* Day End Time */}
         <Pressable
+          ref={dayEndRef}
           onPress={() => setShowDayEndPicker(true)}
           className="rounded-[18px] border border-black/10 bg-white px-4 py-3.5 dark:border-white/10 dark:bg-neutral-950"
         >
